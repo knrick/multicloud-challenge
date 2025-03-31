@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.env
+.venv/
+venv/
+ENV/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+*.tfvars
+
+# AWS
+.aws/
+*.pem
+
+# Build outputs
+*.zip
+build/
+
+# Source materials
+tasks/
+videos/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Static files
+src/app/static/css/tailwind.css
+src/app/static/css/dist/
+src/app/static/js/dist/
+
+# Environment variables
+.env*
+!.env.example
+
+# Google Cloud
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+
+# Kubernetes
+kubeconfig
+*.kubeconfig
+
+# Logs
+logs/
+*.log
+
+# Poetry
+.installed.cfg
+*.egg
+*.egg-info/
+poetry.lock
+
+# Poetry environment variables
+.python-version
