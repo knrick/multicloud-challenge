@@ -2,6 +2,87 @@ provider "aws" {
   region = "us-east-1"
 }
 
+# EC2 Admin Role
+resource "aws_iam_role" "ec2_admin_role" {
+  name = "EC2Admin"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Name = "EC2Admin"
+    Environment = "Dev"
+  }
+}
+
+# Attach AdministratorAccess policy to EC2Admin role
+resource "aws_iam_role_policy_attachment" "ec2_admin_policy" {
+  role       = aws_iam_role.ec2_admin_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+}
+
+# Create instance profile for EC2
+resource "aws_iam_instance_profile" "ec2_admin_profile" {
+  name = "EC2AdminProfile"
+  role = aws_iam_role.ec2_admin_role.name
+}
+
+# EC2 Instance
+resource "aws_instance" "workstation" {
+  ami           = "ami-0440d3b780d96b29d"  # Amazon Linux 2023 in us-east-1
+  instance_type = "t2.micro"
+  
+  iam_instance_profile = aws_iam_instance_profile.ec2_admin_profile.name
+  
+  vpc_security_group_ids = [aws_security_group.workstation_sg.id]
+  
+  tags = {
+    Name = "workstation"
+    Environment = "Dev"
+  }
+}
+
+# Security Group for EC2
+resource "aws_security_group" "workstation_sg" {
+  name        = "workstation-sg"
+  description = "Security group for workstation EC2 instance"
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]  # Note: In production, restrict this to specific IPs
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "workstation-sg"
+    Environment = "Dev"
+  }
+}
+
+# Output the EC2 instance public IP
+output "workstation_public_ip" {
+  value = aws_instance.workstation.public_ip
+  description = "Public IP of the workstation EC2 instance"
+}
+
 # DynamoDB Tables
 resource "aws_dynamodb_table" "cloudmart_products" {
   name           = "cloudmart-products"
@@ -98,11 +179,17 @@ resource "aws_iam_role_policy" "lambda_policy" {
 
 # Lambda function for listing products
 resource "aws_lambda_function" "list_products" {
-  filename         = "lambda/product-recommendations/list_products.zip"
+  filename         = "../lambda/product-recommendations/list_products.zip"
   function_name    = "cloudmart-list-products"
   role            = aws_iam_role.lambda_role.arn
   handler         = "index.handler"
   runtime         = "python3.12"
+
+  provisioner "local-exec" {
+    command     = "Set-Location ../lambda; ./package.ps1"
+    interpreter = ["powershell", "-Command"]
+    working_dir = path.module
+  }
 
   environment {
     variables = {
