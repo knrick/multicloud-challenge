@@ -64,6 +64,13 @@ resource "aws_security_group" "workstation_sg" {
     cidr_blocks = ["0.0.0.0/0"]  # Note: In production, restrict this to specific IPs
   }
 
+  ingress {
+    from_port   = 8000
+    to_port     = 8000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]  # Note: In production, restrict this to specific IPs
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
