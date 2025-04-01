@@ -14,15 +14,83 @@ module "vpc" {
   single_nat_gateway = true
   enable_vpn_gateway = false
 
+  # Required tags for EKS
   tags = {
     Environment = "dev"
     Project     = "cloudmart"
+    "kubernetes.io/cluster/cloudmart-cluster" = "shared"
   }
+
+  public_subnet_tags = {
+    "kubernetes.io/cluster/cloudmart-cluster" = "shared"
+    "kubernetes.io/role/elb"                  = "1"
+  }
+
+  private_subnet_tags = {
+    "kubernetes.io/cluster/cloudmart-cluster" = "shared"
+    "kubernetes.io/role/internal-elb"         = "1"
+  }
+}
+
+# EKS Cluster Role
+resource "aws_iam_role" "eks_cluster" {
+  name = "cloudmart-eks-cluster-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "eks.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+  role       = aws_iam_role.eks_cluster.name
+}
+
+# EKS Node Group Role
+resource "aws_iam_role" "eks_node_group" {
+  name = "cloudmart-eks-node-group-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "eks_worker_node_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+  role       = aws_iam_role.eks_node_group.name
+}
+
+resource "aws_iam_role_policy_attachment" "eks_cni_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+  role       = aws_iam_role.eks_node_group.name
+}
+
+resource "aws_iam_role_policy_attachment" "eks_container_registry" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+  role       = aws_iam_role.eks_node_group.name
 }
 
 # EKS Cluster
 module "eks" {
-  source = "terraform-aws-modules/eks/aws"
+  source  = "terraform-aws-modules/eks/aws"
   version = "20.2.1"
 
   cluster_name    = "cloudmart-cluster"
@@ -33,6 +101,10 @@ module "eks" {
 
   cluster_endpoint_public_access = true
 
+  # Use our custom IAM roles
+  create_iam_role = false
+  iam_role_arn    = aws_iam_role.eks_cluster.arn
+
   eks_managed_node_groups = {
     general = {
       desired_size = 2
@@ -41,6 +113,10 @@ module "eks" {
 
       instance_types = ["t3.small"]
       capacity_type  = "ON_DEMAND"
+
+      # Use our custom node role
+      create_iam_role = false
+      iam_role_arn    = aws_iam_role.eks_node_group.arn
     }
   }
 
