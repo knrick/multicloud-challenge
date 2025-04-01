@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudMart - Home</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/main.css') }}">
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold mb-8">Welcome to CloudMart</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-semibold mb-4">Product Catalog</h2>
+                <p class="text-gray-600 mb-4">Browse our available products.</p>
+                <a href="/products" class="inline-block bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">
+                    View Products
+                </a>
+            </div>
+            
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-semibold mb-4">Customer Support</h2>
+                <p class="text-gray-600 mb-4">Need help? Create a support ticket.</p>
+                <a href="/tickets" class="inline-block bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600">
+                    Support
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 
