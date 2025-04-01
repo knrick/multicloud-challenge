@@ -16,20 +16,15 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 # Template routes
-@app.get("/templates/{template_name}")
-async def serve_template(request: Request, template_name: str):
-    """Serve template pages"""
-    # Initialize services
+@app.get("/products")
+async def products_page(request: Request):
+    """Serve the products page"""
     product_service = ProductService()
-    
-    # Get template context based on template name
-    context = {"request": request}
-    
-    if template_name == "products.html":
-        products = await product_service.list_products()
-        context["products"] = products
-    
-    return templates.TemplateResponse(f"{template_name}", context)
+    products = await product_service.list_products()
+    return templates.TemplateResponse(
+        "products.html",
+        {"request": request, "products": products}
+    )
 
 # Import routers
 from api import products, orders, tickets
