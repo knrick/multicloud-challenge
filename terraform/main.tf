@@ -211,4 +211,36 @@ resource "aws_lambda_permission" "allow_bedrock" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.list_products.function_name
   principal     = "bedrock.amazonaws.com"
+}
+
+# EKS access policy for terraform-admin
+resource "aws_iam_policy" "eks_access" {
+  name        = "eks-access-policy"
+  description = "Policy to allow EKS cluster access"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "eks:*",
+          "ec2:DescribeInstances",
+          "ec2:DescribeRouteTables",
+          "ec2:DescribeSecurityGroups",
+          "ec2:DescribeSubnets",
+          "ec2:DescribeVpcs",
+          "iam:GetRole",
+          "iam:ListRoles"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# Attach the EKS access policy to terraform-admin user
+resource "aws_iam_user_policy_attachment" "terraform_admin_eks" {
+  user       = "terraform-admin"
+  policy_arn = aws_iam_policy.eks_access.arn
 } 
