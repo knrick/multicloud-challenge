@@ -1,0 +1,36 @@
+[tool.poetry]
+name = "cloudmart"
+version = "0.1.0"
+description = "MultiCloud E-commerce Platform"
+authors = ["Dmitry Alferov"]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.110.0"
+uvicorn = "^0.27.1"
+sqlalchemy = "^2.0.28"
+pydantic = "^2.6.3"
+pydantic-settings = "^2.2.1"
+jinja2 = "^3.1.3"
+python-multipart = "^0.0.9"
+boto3 = "^1.34.64"
+httpx = "^0.27.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+black = "^24.2.0"
+isort = "^5.13.2"
+mypy = "^1.8.0"
+pytest-cov = "^4.1.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3 
