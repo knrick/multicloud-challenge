@@ -6,17 +6,29 @@
     <title>CloudMart - Products</title>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/main.css') }}">
 </head>
 <body class="bg-gray-100">
     <div class="container mx-auto px-4 py-8">
         <h1 class="text-3xl font-bold mb-8">Products</h1>
         
         <!-- Product List -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-             hx-get="/api/products"
-             hx-trigger="load"
-             hx-swap="innerHTML">
-            <!-- Products will be loaded here -->
+        <div id="product-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for product in products %}
+            <div class="product-card">
+                <h3 class="text-xl font-semibold mb-2">{{ product.name }}</h3>
+                <p class="text-gray-600 mb-4">{{ product.description }}</p>
+                <div class="flex justify-between items-center">
+                    <span class="text-lg font-bold">${{ "%.2f"|format(product.price) }}</span>
+                    <span class="text-sm text-gray-500">Stock: {{ product.stock }}</span>
+                </div>
+                <div class="mt-4">
+                    <span class="inline-block bg-gray-200 rounded-full px-3 py-1 text-sm font-semibold text-gray-700">
+                        {{ product.category }}
+                    </span>
+                </div>
+            </div>
+            {% endfor %}
         </div>
 
         <!-- Add Product Form -->
@@ -44,22 +56,5 @@
             </form>
         </div>
     </div>
-
-    <!-- Product Card Template -->
-    <template id="product-template">
-        <div class="bg-white p-6 rounded-lg shadow">
-            <h3 class="text-xl font-semibold mb-2">${name}</h3>
-            <p class="text-gray-600 mb-4">${description}</p>
-            <div class="flex justify-between items-center">
-                <span class="text-lg font-bold">$${price}</span>
-                <span class="text-sm text-gray-500">Stock: ${stock}</span>
-            </div>
-            <div class="mt-4">
-                <span class="inline-block bg-gray-200 rounded-full px-3 py-1 text-sm font-semibold text-gray-700">
-                    ${category}
-                </span>
-            </div>
-        </div>
-    </template>
 </body>
 </html> 

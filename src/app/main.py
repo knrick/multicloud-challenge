@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from services.product_service import ProductService
 
 app = FastAPI(
     title="CloudMart",
@@ -18,7 +19,17 @@ templates = Jinja2Templates(directory="templates")
 @app.get("/templates/{template_name}")
 async def serve_template(request: Request, template_name: str):
     """Serve template pages"""
-    return templates.TemplateResponse(f"{template_name}", {"request": request})
+    # Initialize services
+    product_service = ProductService()
+    
+    # Get template context based on template name
+    context = {"request": request}
+    
+    if template_name == "products.html":
+        products = await product_service.list_products()
+        context["products"] = products
+    
+    return templates.TemplateResponse(f"{template_name}", context)
 
 # Import routers
 from api import products, orders, tickets
