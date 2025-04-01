@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -13,6 +13,12 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Templates
 templates = Jinja2Templates(directory="templates")
+
+# Template routes
+@app.get("/templates/{template_name}")
+async def serve_template(request: Request, template_name: str):
+    """Serve template pages"""
+    return templates.TemplateResponse(f"{template_name}", {"request": request})
 
 # Import routers
 from api import products, orders, tickets
