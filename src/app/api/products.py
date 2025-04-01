@@ -19,10 +19,14 @@ async def get_product(product_id: str):
         raise HTTPException(status_code=404, detail="Product not found")
     return product
 
-@router.post("/", response_model=Product)
+@router.post("/", response_model=Product, status_code=201)
 async def create_product(product: ProductCreate):
     """Create a new product"""
-    return await product_service.create_product(product)
+    try:
+        new_product = await product_service.create_product(product)
+        return new_product
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.put("/{product_id}", response_model=Product)
 async def update_product(product_id: str, product: ProductCreate):
