@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Form
 from typing import List
 from models.product import Product, ProductCreate
 from services.product_service import ProductService
+from fastapi.responses import RedirectResponse
 
 router = APIRouter()
 product_service = ProductService()
@@ -19,12 +20,25 @@ async def get_product(product_id: str):
         raise HTTPException(status_code=404, detail="Product not found")
     return product
 
-@router.post("/", response_model=Product, status_code=201)
-async def create_product(product: ProductCreate):
+@router.post("/")
+async def create_product(
+    name: str = Form(...),
+    description: str = Form(...),
+    price: float = Form(...),
+    stock: int = Form(...),
+    category: str = Form(...)
+):
     """Create a new product"""
     try:
-        new_product = await product_service.create_product(product)
-        return new_product
+        product_data = ProductCreate(
+            name=name,
+            description=description,
+            price=price,
+            stock=stock,
+            category=category
+        )
+        await product_service.create_product(product_data)
+        return RedirectResponse(url="/products", status_code=303)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
