@@ -6,8 +6,7 @@ aws ecr get-login-password --region us-east-1 | docker login --username AWS --pa
 
 # Tag and push to ECR
 Write-Host "Tagging and pushing to ECR..."
-Set-Location ../src/app
-docker tag cloudmart:latest 039612844200.dkr.ecr.us-east-1.amazonaws.com/cloudmart-backend:latest
-docker push 039612844200.dkr.ecr.us-east-1.amazonaws.com/cloudmart-backend:latest
+docker tag cloudmart:latest 039612844200.dkr.ecr.us-east-1.amazonaws.com/cloudmart:latest
+docker push 039612844200.dkr.ecr.us-east-1.amazonaws.com/cloudmart:latest
 
 Write-Host "Done!" 
