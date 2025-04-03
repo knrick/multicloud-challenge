@@ -13,7 +13,7 @@ phases:
       - echo Logging in to Amazon ECR...
       - aws --version
       - REPOSITORY_URI=$ECR_REPO
-      - aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/l4c0j8h9
+      - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 039612844200.dkr.ecr.us-east-1.amazonaws.com
   build:
     commands:
       - echo Build started on `date`
