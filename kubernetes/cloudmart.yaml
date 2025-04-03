@@ -1,28 +1,28 @@
-apiVersion: v1
+ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: cloudmart-app
   annotations:
-    eks.amazonaws.com/role-arn: arn:aws:iam::${AWS_ACCOUNT_ID}:role/cloudmart-fastapi-role
+    eks.amazonaws.com/role-arn: arn:aws:iam::039612844200:role/cloudmart-fastapi-role
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cloudmart-backend
+  name: cloudmart
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: cloudmart-backend
+      app: cloudmart
   template:
     metadata:
       labels:
-        app: cloudmart-backend
+        app: cloudmart
     spec:
       serviceAccountName: cloudmart-app
       containers:
-      - name: cloudmart-backend
-        image: ${ECR_REGISTRY}/cloudmart-backend:latest
+      - name: cloudmart
+        image: 039612844200.dkr.ecr.us-east-1.amazonaws.com/cloudmart:latest
         ports:
         - containerPort: 8000
         env:
@@ -46,11 +46,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: cloudmart-backend
+  name: cloudmart
 spec:
   type: LoadBalancer
   ports:
   - port: 80
     targetPort: 8000
   selector:
-    app: cloudmart-backend 
+    app: cloudmart 

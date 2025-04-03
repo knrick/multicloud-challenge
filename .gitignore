@@ -56,6 +56,7 @@ src/app/static/js/dist/
 # Kubernetes
 kubeconfig
 *.kubeconfig
+kubernetes/cloudmart-secrets.yaml
 
 # Logs
 logs/
