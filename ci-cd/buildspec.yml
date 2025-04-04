@@ -10,8 +10,6 @@ phases:
       - kubectl version --short --client
   pre_build:
     commands:
-      - echo Logging in to Docker Hub...
-      - aws secretsmanager get-secret-value --secret-id dockerhub-credentials --query SecretString --output text | docker login -u knrick --password-stdin
       - echo Logging in to Amazon ECR...
       - aws --version
       - REPOSITORY_URI=$ECR_REPO
