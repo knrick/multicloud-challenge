@@ -2,6 +2,46 @@ provider "aws" {
   region = "us-east-1"
 }
 
+# Get EKS cluster for Kubernetes provider
+data "aws_eks_cluster" "cloudmart" {
+  name = "cloudmart"
+}
+
+data "aws_eks_cluster_auth" "cloudmart" {
+  name = "cloudmart"
+}
+
+provider "kubernetes" {
+  host                   = data.aws_eks_cluster.cloudmart.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.cloudmart.certificate_authority[0].data)
+  token                  = data.aws_eks_cluster_auth.cloudmart.token
+}
+
+# Add CodeBuild role to aws-auth ConfigMap
+resource "kubernetes_config_map_v1_data" "aws_auth" {
+  metadata {
+    name      = "aws-auth"
+    namespace = "kube-system"
+  }
+
+  data = {
+    mapRoles = yamlencode([
+      {
+        rolearn  = "arn:aws:iam::039612844200:role/cloudmart-eks-node-group-role"
+        username = "system:node:{{EC2PrivateDNSName}}"
+        groups   = ["system:bootstrappers", "system:nodes"]
+      },
+      {
+        rolearn  = aws_iam_role.codebuild_role.arn
+        username = "codebuild"
+        groups   = ["system:masters"]
+      }
+    ])
+  }
+
+  force = true
+}
+
 # CodeBuild project for building Docker image
 resource "aws_codebuild_project" "cloudmart_build" {
   name          = "cloudmartBuild"
@@ -20,7 +60,7 @@ resource "aws_codebuild_project" "cloudmart_build" {
     
     environment_variable {
       name  = "ECR_REPO"
-      value = "public.ecr.aws/l4c0j8h9/cloudmart"
+      value = "039612844200.dkr.ecr.us-east-1.amazonaws.com/cloudmart"
     }
   }
 
@@ -50,12 +90,6 @@ resource "aws_iam_role" "codebuild_role" {
       }
     ]
   })
-}
-
-# Attach ECR public access policy
-resource "aws_iam_role_policy_attachment" "ecr_public_access" {
-  role       = aws_iam_role.codebuild_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonElasticContainerRegistryPublicFullAccess"
 }
 
 # CodePipeline IAM Role
@@ -199,7 +233,7 @@ resource "aws_codepipeline" "cloudmart" {
   }
 }
 
-# CodeBuild IAM Role Policy
+# Update CodeBuild role policy to include ECR permissions
 resource "aws_iam_role_policy" "codebuild_policy" {
   name = "cloudmart-codebuild-policy"
   role = aws_iam_role.codebuild_role.id
@@ -212,7 +246,9 @@ resource "aws_iam_role_policy" "codebuild_policy" {
         Action = [
           "eks:DescribeCluster",
           "eks:ListClusters",
-          "eks:AccessKubernetesApi"
+          "eks:AccessKubernetesApi",
+          "eks:GetToken",
+          "sts:GetCallerIdentity"
         ]
         Resource = "*"
       },
@@ -241,6 +277,26 @@ resource "aws_iam_role_policy" "codebuild_policy" {
           "${aws_s3_bucket.artifacts.arn}",
           "${aws_s3_bucket.artifacts.arn}/*"
         ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:GetAuthorizationToken",
+          "ecr-public:GetAuthorizationToken",
+          "sts:GetServiceBearerToken"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:CompleteLayerUpload",
+          "ecr:InitiateLayerUpload",
+          "ecr:PutImage",
+          "ecr:UploadLayerPart"
+        ]
+        Resource = "arn:aws:ecr:us-east-1:039612844200:repository/cloudmart"
       }
     ]
   })
