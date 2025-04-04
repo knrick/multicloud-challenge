@@ -211,6 +211,7 @@ resource "aws_codepipeline" "cloudmart" {
         ConnectionArn    = aws_codestarconnections_connection.github.arn
         FullRepositoryId = "knrick/multicloud-challenge"
         BranchName       = "master"
+        DetectChanges    = true
       }
     }
   }
