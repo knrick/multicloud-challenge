@@ -1,5 +1,5 @@
 # Build stage
-FROM python:3.12-slim as builder
+FROM public.ecr.aws/docker/library/python:3.12-slim as builder
 
 WORKDIR /app
 
@@ -14,7 +14,7 @@ RUN poetry config virtualenvs.create false \
     && poetry install --no-interaction --no-ansi --no-root
 
 # Runtime stage
-FROM python:3.12-slim
+FROM public.ecr.aws/docker/library/python:3.12-slim
 
 WORKDIR /app
 
