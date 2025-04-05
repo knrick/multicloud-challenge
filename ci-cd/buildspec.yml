@@ -49,6 +49,7 @@ phases:
       
       # Update Lambda function
       - echo Updating Lambda function...
+      - cd ..
       - aws lambda update-function-code --function-name cloudmart-list-products --zip-file fileb://lambda/product-recommendations/function.zip
       
       # Deploy to EKS

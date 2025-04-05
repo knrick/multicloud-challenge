@@ -22,7 +22,7 @@ spec:
       serviceAccountName: cloudmart-app
       containers:
       - name: cloudmart
-        image: CONTAINER_IMAGE
+        image: 039612844200.dkr.ecr.us-east-1.amazonaws.com/cloudmart:latest
         ports:
         - containerPort: 8000
         env:
