@@ -26,6 +26,7 @@ build/
 # Source materials
 tasks/
 videos/
+cloudmart-backend-example/
 
 # IDE
 .vscode/

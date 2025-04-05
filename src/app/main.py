@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from services.product_service import ProductService
+from services.ticket_service import TicketService
 from core.security import verify_admin
 
 app = FastAPI(
@@ -25,6 +26,16 @@ async def home_page(request: Request):
         {"request": request}
     )
 
+@app.get("/tickets")
+async def tickets_page(request: Request):
+    """Serve the tickets page"""
+    ticket_service = TicketService()
+    tickets = await ticket_service.list_tickets()
+    return templates.TemplateResponse(
+        "tickets.html",
+        {"request": request, "tickets": tickets}
+    )
+
 # Protected routes
 @app.get("/products")
 async def products_page(request: Request, username: str = Depends(verify_admin)):
@@ -37,7 +48,7 @@ async def products_page(request: Request, username: str = Depends(verify_admin))
     )
 
 # Import routers
-from api import products, orders, tickets
+from api import products, orders, tickets, ai
 
 # Include routers with authentication
 app.include_router(
@@ -48,6 +59,7 @@ app.include_router(
 )
 app.include_router(orders.router, prefix="/api/orders", tags=["orders"])
 app.include_router(tickets.router, prefix="/api/tickets", tags=["tickets"])
+app.include_router(ai.router, prefix="/api/ai", tags=["ai"])
 
 if __name__ == "__main__":
     import uvicorn
