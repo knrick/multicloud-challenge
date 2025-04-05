@@ -30,10 +30,10 @@ async def send_openai_message(data: Dict[str, str]) -> Dict[str, str]:
 
 @router.post("/bedrock/start")
 async def start_bedrock_conversation() -> Dict[str, str]:
-    """Start a new Bedrock conversation and return conversation ID"""
+    """Start a new Bedrock conversation and return session ID"""
     try:
-        conversation_id = await ai_service.create_bedrock_conversation()
-        return {"conversationId": conversation_id}
+        session_id = await ai_service.create_bedrock_conversation()
+        return {"sessionId": session_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -41,12 +41,12 @@ async def start_bedrock_conversation() -> Dict[str, str]:
 async def send_bedrock_message(data: Dict[str, str]) -> Dict[str, str]:
     """Send a message to Bedrock conversation"""
     try:
-        conversation_id = data.get("conversationId")
+        session_id = data.get("sessionId")
         message = data.get("message")
-        if not conversation_id or not message:
-            raise HTTPException(status_code=400, detail="ConversationId and message are required")
+        if not session_id or not message:
+            raise HTTPException(status_code=400, detail="SessionId and message are required")
         
-        response = await ai_service.send_bedrock_message(conversation_id, message)
+        response = await ai_service.send_bedrock_message(session_id, message)
         return {"response": response}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 
