@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import List
 from datetime import datetime
 import uuid
 
@@ -8,21 +8,13 @@ class Message(BaseModel):
     content: str
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
-class TicketBase(BaseModel):
-    title: str = Field(..., min_length=1, max_length=200)
-    description: str = Field(..., min_length=1, max_length=2000)
-    status: str = Field(default="open", pattern="^(open|in_progress|resolved|closed)$")
-
-class TicketCreate(TicketBase):
-    pass
-
-class Ticket(TicketBase):
+class Ticket(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    thread_id: str
+    messages: List[Message] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-    ai_response: Optional[str] = None
-    thread_id: Optional[str] = None
-    messages: List[Message] = Field(default_factory=list)
+    status: str = Field(default="open", pattern="^(open|closed)$")
     
     class Config:
         from_attributes = True 

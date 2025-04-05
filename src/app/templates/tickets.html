@@ -3,38 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CloudMart - Support Tickets</title>
+    <title>CloudMart - Support Chat</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="{{ url_for('static', path='css/main.css') }}">
 </head>
 <body class="bg-gray-100">
     <div class="container mx-auto px-4 py-8">
         <div class="flex justify-between items-center mb-8">
-            <h1 class="text-3xl font-bold">Support Tickets</h1>
+            <h1 class="text-3xl font-bold">Support Chat</h1>
             <div class="flex gap-4 items-center">
-                <a href="/tickets/new" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                    Create New Ticket
-                </a>
+                <form method="POST" action="/api/tickets" class="flex">
+                    <input type="text" 
+                           name="message" 
+                           required 
+                           placeholder="Type your message to start a chat..."
+                           class="rounded-l-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 min-w-[300px]">
+                    <button type="submit" 
+                            class="bg-blue-500 text-white px-4 py-2 rounded-r-lg hover:bg-blue-600">
+                        Start Chat
+                    </button>
+                </form>
                 <a href="/" class="text-blue-500 hover:text-blue-600">Back to Home</a>
             </div>
         </div>
         
-        <!-- Tickets Table -->
+        <!-- Chat Threads Table -->
         <div class="bg-white rounded-lg shadow overflow-hidden">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Ticket ID
+                            Chat ID
                         </th>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Title
+                            Last Message
                         </th>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Status
                         </th>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Created
+                            Started
                         </th>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Last Updated
@@ -47,14 +55,16 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                             #{{ ticket.id[:8] }}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ ticket.title }}
+                        <td class="px-6 py-4 text-sm text-gray-900">
+                            {% if ticket.messages %}
+                                {{ ticket.messages[-1].content[:50] }}...
+                            {% else %}
+                                No messages
+                            {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <span class="px-2 py-1 text-xs rounded-full font-medium
-                                {% if ticket.status == 'open' %}bg-yellow-100 text-yellow-800
-                                {% elif ticket.status == 'in_progress' %}bg-blue-100 text-blue-800
-                                {% elif ticket.status == 'resolved' %}bg-green-100 text-green-800
+                                {% if ticket.status == 'open' %}bg-green-100 text-green-800
                                 {% else %}bg-gray-100 text-gray-800{% endif %}">
                                 {{ ticket.status }}
                             </span>

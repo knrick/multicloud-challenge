@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Form
 from typing import List
-from models.ticket import Ticket, TicketCreate
+from models.ticket import Ticket
 from services.ticket_service import TicketService
 from fastapi.responses import RedirectResponse
 
@@ -21,39 +21,29 @@ async def get_ticket(ticket_id: str):
     return ticket
 
 @router.post("/")
-async def create_ticket(
-    title: str = Form(...),
-    description: str = Form(...)
-):
-    """Create a new ticket"""
+async def create_ticket(message: str = Form(...)):
+    """Create a new ticket with initial message"""
     try:
-        ticket_data = TicketCreate(
-            title=title,
-            description=description
-        )
-        await ticket_service.create_ticket(ticket_data)
+        await ticket_service.create_ticket(message)
         return RedirectResponse(url="/tickets", status_code=303)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/{ticket_id}/message")
-async def send_message(
-    ticket_id: str,
-    message: str = Form(...)
-):
+async def send_message(ticket_id: str, message: str = Form(...)):
     """Send a message to an existing ticket"""
     try:
-        ticket = await ticket_service.continue_conversation(ticket_id, message)
+        ticket = await ticket_service.send_message(ticket_id, message)
         if not ticket:
-            raise HTTPException(status_code=404, detail="Ticket not found")
-        return RedirectResponse(url="/tickets", status_code=303)
+            raise HTTPException(status_code=404, detail="Ticket not found or closed")
+        return RedirectResponse(url=f"/tickets/{ticket_id}", status_code=303)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.put("/{ticket_id}", response_model=Ticket)
-async def update_ticket(ticket_id: str, status: str):
-    """Update ticket status"""
-    updated_ticket = await ticket_service.update_ticket(ticket_id, status)
-    if not updated_ticket:
+@router.post("/{ticket_id}/close")
+async def close_ticket(ticket_id: str):
+    """Close a ticket"""
+    ticket = await ticket_service.close_ticket(ticket_id)
+    if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
-    return updated_ticket 
+    return ticket 

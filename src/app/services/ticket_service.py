@@ -1,7 +1,7 @@
 import boto3
 from botocore.exceptions import ClientError
 from typing import List, Optional
-from models.ticket import Ticket, TicketCreate, Message
+from models.ticket import Ticket, Message
 import os
 import json
 from datetime import datetime
@@ -23,12 +23,11 @@ class TicketService:
         """Create an OpenAI assistant for customer support"""
         assistant = self.openai.beta.assistants.create(
             name="CloudMart Customer Support",
-            instructions="""You are a customer support assistant for CloudMart, an e-commerce platform.
-            Your role is to help customers with their inquiries and issues.
-            Be professional, helpful, and empathetic. Focus on providing clear solutions.
-            If a technical issue is reported, provide troubleshooting steps.
-            For product-related questions, guide customers to the appropriate resources.
-            For complex issues, explain that a human support agent will review the ticket.""",
+            instructions="""You are a customer support agent for CloudMart, an e-commerce platform.
+            Your role is to assist customers with general inquiries, order issues, and provide helpful information about using the CloudMart platform.
+            You don't have direct access to specific product or inventory information.
+            Always be polite, patient, and focus on providing excellent customer service.
+            If a customer asks about specific products or inventory, politely explain that you don't have access to that information and suggest they check the website or speak with a sales representative.""",
             model="gpt-4-turbo-preview"
         )
         return assistant.id
@@ -84,23 +83,20 @@ class TicketService:
             print(f"Error getting ticket: {e.response['Error']['Message']}")
             return None
 
-    async def create_ticket(self, ticket: TicketCreate) -> Ticket:
+    async def create_ticket(self, message: str) -> Ticket:
         """Create a new ticket and start conversation"""
-        new_ticket = Ticket(**ticket.model_dump())
-        
         # Create a new thread
         thread = self.openai.beta.threads.create()
-        new_ticket.thread_id = thread.id
+        
+        # Create new ticket
+        new_ticket = Ticket(thread_id=thread.id)
         
         # Add initial message
-        initial_message = Message(
-            role="user",
-            content=f"Title: {ticket.title}\nDescription: {ticket.description}"
-        )
-        new_ticket.messages.append(initial_message)
+        user_message = Message(role="user", content=message)
+        new_ticket.messages.append(user_message)
         
         # Get AI response
-        ai_response = await self._get_ai_response(thread.id, initial_message.content)
+        ai_response = await self._get_ai_response(thread.id, message)
         ai_message = Message(role="assistant", content=ai_response)
         new_ticket.messages.append(ai_message)
         
@@ -111,11 +107,11 @@ class TicketService:
             print(f"Error creating ticket: {e.response['Error']['Message']}")
             raise
 
-    async def continue_conversation(self, ticket_id: str, message: str) -> Optional[Ticket]:
-        """Continue conversation on an existing ticket"""
+    async def send_message(self, ticket_id: str, message: str) -> Optional[Ticket]:
+        """Send a message in an existing ticket"""
         try:
             ticket = await self.get_ticket(ticket_id)
-            if not ticket:
+            if not ticket or ticket.status == "closed":
                 return None
             
             # Add user message
@@ -133,22 +129,21 @@ class TicketService:
             self.table.put_item(Item=json.loads(ticket.model_dump_json()))
             return ticket
         except ClientError as e:
-            print(f"Error continuing conversation: {e.response['Error']['Message']}")
+            print(f"Error sending message: {e.response['Error']['Message']}")
             return None
 
-    async def update_ticket(self, ticket_id: str, status: str) -> Optional[Ticket]:
-        """Update ticket status"""
+    async def close_ticket(self, ticket_id: str) -> Optional[Ticket]:
+        """Close a ticket"""
         try:
             ticket = await self.get_ticket(ticket_id)
             if not ticket:
                 return None
             
-            # Update status and timestamp
-            ticket.status = status
+            ticket.status = "closed"
             ticket.updated_at = datetime.utcnow()
             
             self.table.put_item(Item=json.loads(ticket.model_dump_json()))
             return ticket
         except ClientError as e:
-            print(f"Error updating ticket: {e.response['Error']['Message']}")
+            print(f"Error closing ticket: {e.response['Error']['Message']}")
             return None 
