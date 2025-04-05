@@ -12,20 +12,20 @@ logger.setLevel(logging.INFO)
 dynamodb = boto3.resource('dynamodb')
 table = dynamodb.Table(os.environ['PRODUCTS_TABLE'])
 
-def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+def handler(event: Dict[str, Any], context: Any) -> List[Dict[str, Any]]:
     """
-    Lambda handler to list products from DynamoDB.
+    Lambda handler to list products from DynamoDB for Bedrock agent integration.
     Can filter by name if provided in the query parameters.
-    Returns products array directly in the response body as expected by Bedrock agent.
+    Returns products array directly as expected by Bedrock agent.
     """
     try:
         # Log the incoming event
-        logger.info(f"Received event: {json.dumps(event)}")
+        logger.info(f"Received event from Bedrock: {json.dumps(event)}")
         
-        # Get query parameters
+        # Get query parameters from Bedrock event
         query_params = event.get('queryStringParameters', {}) or {}
         name_filter = query_params.get('name')
-        logger.info(f"Query parameters: {query_params}, name filter: {name_filter}")
+        logger.info(f"Name filter: {name_filter}")
 
         # Prepare scan parameters
         scan_params = {}
@@ -35,15 +35,12 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             scan_params['ExpressionAttributeValues'] = {':name': name_filter}
         logger.info(f"DynamoDB scan parameters: {scan_params}")
 
-        # Log table name being accessed
-        logger.info(f"Accessing DynamoDB table: {os.environ['PRODUCTS_TABLE']}")
-
         # Scan DynamoDB table
         response = table.scan(**scan_params)
         products = response.get('Items', [])
         logger.info(f"Found {len(products)} products")
 
-        # Format products according to the API schema
+        # Format products according to Bedrock agent schema
         formatted_products = [
             {
                 'name': product['name'],
@@ -54,22 +51,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         ]
         
         logger.info(f"Returning {len(formatted_products)} formatted products")
-        return {
-            'statusCode': 200,
-            'headers': {
-                'Content-Type': 'application/json'
-            },
-            'body': json.dumps(formatted_products)  # Return array directly, not wrapped in object
-        }
+        return formatted_products
 
     except Exception as e:
         logger.error(f"Error processing request: {str(e)}", exc_info=True)
-        return {
-            'statusCode': 500,
-            'headers': {
-                'Content-Type': 'application/json'
-            },
-            'body': json.dumps({
-                'error': str(e)
-            })
-        } 
+        # Return error in format expected by Bedrock
+        return {'error': str(e)} 
