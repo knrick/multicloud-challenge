@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-from ..services.ai_service import AIService
+from services.ai_service import AIService
 import logging
 
 # Set up logging
