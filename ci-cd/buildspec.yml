@@ -3,13 +3,18 @@ phases:
   install:
     runtime-versions:
       docker: 20
-      python: 3.12
     commands:
+      # Install system dependencies
+      - yum update -y
+      - yum install -y python3 python3-pip zip
+      # Install kubectl
       - curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/1.18.9/2020-11-02/bin/linux/amd64/kubectl
       - chmod +x ./kubectl
       - mv ./kubectl /usr/local/bin
       - kubectl version --short --client
-      - pip install boto3 botocore  # For Lambda function
+      # Install Python dependencies
+      - python3 -m pip install --upgrade pip
+      - python3 -m pip install boto3 botocore
   pre_build:
     commands:
       - echo Logging in to Amazon ECR...
@@ -31,7 +36,7 @@ phases:
       - mkdir -p build
       - cp index.py build/
       - cd build
-      - pip install --target . boto3 botocore
+      - python3 -m pip install --target . boto3 botocore
       - zip -r ../function.zip .
       - cd ../..
   post_build:
