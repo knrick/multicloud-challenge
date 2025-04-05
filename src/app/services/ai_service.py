@@ -21,9 +21,14 @@ class AIService:
         try:
             self.openai = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
             self.assistant_id = os.getenv('OPENAI_ASSISTANT_ID')
-            if not self.assistant_id:
-                logger.error("OpenAI assistant ID not configured")
-                raise ValueError("OPENAI_ASSISTANT_ID must be set")
+            
+            # Verify the assistant exists and is accessible
+            try:
+                self.openai.beta.assistants.retrieve(self.assistant_id)
+                logger.info(f"Successfully connected to existing assistant: {self.assistant_id}")
+            except Exception as e:
+                logger.error(f"Could not find assistant with ID {self.assistant_id}: {str(e)}")
+                raise ValueError(f"Could not find assistant with ID {self.assistant_id}: {str(e)}")
         except Exception as e:
             logger.error(f"Error initializing OpenAI client: {str(e)}")
             raise
@@ -44,10 +49,6 @@ class AIService:
             raise
         
         self.order_service = OrderService()
-        
-        # Create OpenAI assistant if not exists
-        if not self.assistant_id:
-            self.assistant_id = self._create_assistant()
     
     def _create_assistant(self) -> str:
         """Create an OpenAI assistant for customer support"""
@@ -94,6 +95,20 @@ class AIService:
             }]
         )
         return assistant.id
+
+    def _cleanup_old_assistants(self) -> None:
+        """Clean up old CloudMart assistants to avoid resource waste"""
+        try:
+            assistants = self.openai.beta.assistants.list(limit=100)
+            for assistant in assistants.data:
+                if assistant.name == "CloudMart Customer Support":
+                    try:
+                        logger.info(f"Deleting old assistant: {assistant.id}")
+                        self.openai.beta.assistants.delete(assistant.id)
+                    except Exception as e:
+                        logger.error(f"Error deleting assistant {assistant.id}: {str(e)}")
+        except Exception as e:
+            logger.error(f"Error cleaning up assistants: {str(e)}")
 
     # OpenAI Methods
     async def create_conversation(self) -> str:

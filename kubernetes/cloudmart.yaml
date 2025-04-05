@@ -40,6 +40,11 @@ spec:
             secretKeyRef:
               name: cloudmart-secrets
               key: openai-api-key
+        - name: OPENAI_ASSISTANT_ID
+          valueFrom:
+            secretKeyRef:
+              name: cloudmart-secrets
+              key: openai-assistant-id
         - name: BEDROCK_AGENT_ID
           valueFrom:
             secretKeyRef:
