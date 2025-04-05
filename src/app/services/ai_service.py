@@ -259,36 +259,23 @@ class AIService:
                 # Log raw event for debugging
                 logger.info(f"Raw event: {event}")
                 
-                # Process event payload
-                if hasattr(event, 'raw_payload'):
-                    try:
-                        payload = json.loads(event.raw_payload.decode('utf-8'))
-                        if 'chunk' in payload and 'bytes' in payload['chunk']:
-                            # Decode base64 content if present
-                            try:
-                                decoded_text = base64.b64decode(payload['chunk']['bytes']).decode('utf-8')
-                                full_message += decoded_text
-                                logger.info(f"Decoded text: {decoded_text}")
-                            except Exception as e:
-                                logger.error(f"Error decoding base64 content: {e}")
-                        elif 'text' in payload:
-                            # Handle plain text responses
-                            full_message += payload['text']
-                            logger.info(f"Plain text: {payload['text']}")
-                    except json.JSONDecodeError as e:
-                        logger.error(f"Error parsing event payload: {e}")
-                        # Try to use raw payload as text
-                        try:
-                            text = event.raw_payload.decode('utf-8')
-                            full_message += text
-                            logger.info(f"Using raw text: {text}")
-                        except Exception as e:
-                            logger.error(f"Error decoding raw payload: {e}")
+                # The event is already a dictionary containing the chunk
+                if isinstance(event, dict) and 'chunk' in event:
+                    chunk = event['chunk']
+                    if isinstance(chunk, dict) and 'bytes' in chunk:
+                        # The bytes field contains the actual message as a bytes object
+                        message_bytes = chunk['bytes']
+                        if isinstance(message_bytes, bytes):
+                            full_message += message_bytes.decode('utf-8')
+                        else:
+                            full_message += str(message_bytes)
+                    elif isinstance(chunk, str):
+                        full_message += chunk
             
             logger.info(f"Final full message: {full_message}")
             
             if full_message:
-                return full_message
+                return full_message.strip()
             
             return "I'm sorry, but I couldn't generate a response at the moment. Please try again later."
             
