@@ -4,6 +4,7 @@ from fastapi.templating import Jinja2Templates
 from services.product_service import ProductService
 from services.ticket_service import TicketService
 from core.security import verify_admin
+from fastapi.responses import RedirectResponse
 
 app = FastAPI(
     title="CloudMart",
@@ -27,13 +28,21 @@ async def home_page(request: Request):
     )
 
 @app.get("/tickets")
-async def tickets_page(request: Request):
-    """Serve the tickets list page"""
+async def tickets_page(request: Request, ticket_id: str = None):
+    """Serve the tickets list page with optional active ticket"""
     ticket_service = TicketService()
     tickets = await ticket_service.list_tickets()
+    active_ticket = None
+    if ticket_id:
+        active_ticket = await ticket_service.get_ticket(ticket_id)
     return templates.TemplateResponse(
         "tickets.html",
-        {"request": request, "tickets": tickets}
+        {
+            "request": request, 
+            "tickets": tickets,
+            "active_ticket": active_ticket,
+            "active_ticket_id": ticket_id
+        }
     )
 
 @app.get("/tickets/new")
@@ -46,19 +55,8 @@ async def new_ticket_page(request: Request):
 
 @app.get("/tickets/{ticket_id}")
 async def ticket_conversation_page(request: Request, ticket_id: str):
-    """Serve the ticket conversation page"""
-    ticket_service = TicketService()
-    ticket = await ticket_service.get_ticket(ticket_id)
-    if not ticket:
-        return templates.TemplateResponse(
-            "404.html",
-            {"request": request},
-            status_code=404
-        )
-    return templates.TemplateResponse(
-        "ticket_conversation.html",
-        {"request": request, "ticket": ticket}
-    )
+    """Redirect to tickets page with active ticket"""
+    return RedirectResponse(url=f"/tickets?ticket_id={ticket_id}")
 
 # Protected routes
 @app.get("/products")

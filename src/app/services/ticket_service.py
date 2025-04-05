@@ -7,17 +7,36 @@ import json
 from datetime import datetime
 from openai import OpenAI
 import asyncio
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class TicketService:
     def __init__(self):
-        self.dynamodb = boto3.resource('dynamodb')
-        self.table = self.dynamodb.Table('cloudmart-tickets')
-        self.openai = OpenAI()
-        
-        # Initialize OpenAI assistant if not exists
-        self.assistant_id = os.getenv('OPENAI_ASSISTANT_ID')
-        if not self.assistant_id:
-            self.assistant_id = self._create_assistant()
+        try:
+            self.dynamodb = boto3.resource('dynamodb')
+            self.table = self.dynamodb.Table('cloudmart-tickets')
+            
+            # Check if OPENAI_API_KEY is set
+            api_key = os.getenv('OPENAI_API_KEY')
+            if not api_key:
+                logger.error("OPENAI_API_KEY environment variable is not set")
+                raise ValueError("OPENAI_API_KEY environment variable is not set")
+            
+            self.openai = OpenAI()
+            logger.info("OpenAI client initialized successfully")
+            
+            # Initialize OpenAI assistant if not exists
+            self.assistant_id = os.getenv('OPENAI_ASSISTANT_ID')
+            if not self.assistant_id:
+                logger.info("No assistant ID found, creating new assistant")
+                self.assistant_id = self._create_assistant()
+                logger.info(f"Created new assistant with ID: {self.assistant_id}")
+        except Exception as e:
+            logger.error(f"Error initializing TicketService: {str(e)}")
+            raise
     
     def _create_assistant(self) -> str:
         """Create an OpenAI assistant for customer support"""
@@ -66,11 +85,26 @@ class TicketService:
     async def list_tickets(self) -> List[Ticket]:
         """List all tickets"""
         try:
+            logger.info("Attempting to list tickets")
             response = self.table.scan()
             items = response.get('Items', [])
-            return [Ticket(**item) for item in items]
+            logger.info(f"Found {len(items)} tickets")
+            
+            tickets = []
+            for item in items:
+                try:
+                    ticket = Ticket(**item)
+                    tickets.append(ticket)
+                except Exception as e:
+                    logger.error(f"Error parsing ticket: {str(e)}, Data: {item}")
+                    continue
+            
+            return tickets
         except ClientError as e:
-            print(f"Error scanning tickets: {e.response['Error']['Message']}")
+            logger.error(f"DynamoDB error scanning tickets: {e.response['Error']['Message']}")
+            return []
+        except Exception as e:
+            logger.error(f"Unexpected error listing tickets: {str(e)}")
             return []
 
     async def get_ticket(self, ticket_id: str) -> Optional[Ticket]:

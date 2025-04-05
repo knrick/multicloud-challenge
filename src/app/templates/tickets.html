@@ -8,77 +8,98 @@
     <link rel="stylesheet" href="{{ url_for('static', path='css/main.css') }}">
 </head>
 <body class="bg-gray-100">
-    <div class="container mx-auto px-4 py-8">
-        <div class="flex justify-between items-center mb-8">
-            <h1 class="text-3xl font-bold">Support Chat</h1>
-            <div class="flex gap-4 items-center">
-                <form method="POST" action="/api/tickets" class="flex">
-                    <input type="text" 
-                           name="message" 
-                           required 
-                           placeholder="Type your message to start a chat..."
-                           class="rounded-l-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 min-w-[300px]">
-                    <button type="submit" 
-                            class="bg-blue-500 text-white px-4 py-2 rounded-r-lg hover:bg-blue-600">
-                        Start Chat
-                    </button>
-                </form>
-                <a href="/" class="text-blue-500 hover:text-blue-600">Back to Home</a>
-            </div>
+    <div class="container mx-auto p-4">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold">Support Chat</h1>
+            <a href="/" class="text-blue-500 hover:text-blue-600">Back to Home</a>
         </div>
-        
-        <!-- Chat Threads Table -->
-        <div class="bg-white rounded-lg shadow overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Chat ID
-                        </th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Last Message
-                        </th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status
-                        </th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Started
-                        </th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Last Updated
-                        </th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
+
+        <div class="flex gap-6">
+            <!-- Chat List -->
+            <div class="w-1/3 bg-white rounded-lg shadow-lg overflow-hidden">
+                <div class="p-4 border-b">
+                    <h2 class="text-lg font-semibold">Chat History</h2>
+                </div>
+                <div class="overflow-y-auto max-h-[calc(100vh-200px)]">
                     {% for ticket in tickets %}
-                    <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='/tickets/{{ ticket.id }}'">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            #{{ ticket.id[:8] }}
-                        </td>
-                        <td class="px-6 py-4 text-sm text-gray-900">
-                            {% if ticket.messages %}
-                                {{ ticket.messages[-1].content[:50] }}...
-                            {% else %}
-                                No messages
-                            {% endif %}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="p-4 border-b hover:bg-gray-50 cursor-pointer {% if ticket.id == active_ticket_id %}bg-blue-50{% endif %}"
+                         onclick="window.location='/tickets/{{ ticket.id }}'">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-sm font-medium">#{{ ticket.id[:8] }}</span>
                             <span class="px-2 py-1 text-xs rounded-full font-medium
                                 {% if ticket.status == 'open' %}bg-green-100 text-green-800
                                 {% else %}bg-gray-100 text-gray-800{% endif %}">
                                 {{ ticket.status }}
                             </span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}
-                        </td>
-                    </tr>
+                        </div>
+                        {% if ticket.messages %}
+                        <p class="text-sm text-gray-600 truncate">{{ ticket.messages[-1].content }}</p>
+                        <p class="text-xs text-gray-400 mt-1">{{ ticket.updated_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                        {% endif %}
+                    </div>
                     {% endfor %}
-                </tbody>
-            </table>
+                </div>
+            </div>
+
+            <!-- Chat Window -->
+            <div class="flex-1 bg-white rounded-lg shadow-lg overflow-hidden flex flex-col">
+                {% if active_ticket %}
+                <!-- Chat Messages -->
+                <div class="flex-1 p-4 overflow-y-auto max-h-[calc(100vh-200px)]">
+                    <div class="space-y-4">
+                        {% for message in active_ticket.messages %}
+                        <div class="flex {% if message.role == 'assistant' %}justify-start{% else %}justify-end{% endif %}">
+                            <div class="max-w-[70%] {% if message.role == 'assistant' %}bg-gray-100{% else %}bg-blue-100{% endif %} rounded-lg p-3">
+                                <p class="text-gray-800 whitespace-pre-wrap">{{ message.content }}</p>
+                                <p class="text-xs text-gray-500 mt-1">{{ message.timestamp.strftime('%H:%M') }}</p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Message Input -->
+                {% if active_ticket.status == 'open' %}
+                <div class="p-4 border-t">
+                    <form method="POST" action="/api/tickets/{{ active_ticket.id }}/message" class="flex gap-2">
+                        <input type="text" 
+                               name="message" 
+                               required 
+                               placeholder="Type your message..."
+                               class="flex-1 rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <button type="submit" 
+                                class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600">
+                            Send
+                        </button>
+                    </form>
+                </div>
+                {% else %}
+                <div class="p-4 border-t text-center text-gray-500">
+                    This chat has ended. Start a new chat to continue getting support.
+                </div>
+                {% endif %}
+
+                {% else %}
+                <!-- Welcome Screen -->
+                <div class="flex-1 flex flex-col items-center justify-center p-8 text-center">
+                    <h2 class="text-2xl font-semibold mb-4">Welcome to CloudMart Support</h2>
+                    <p class="text-gray-600 mb-8 max-w-md">How can we help you today? Start a chat with our AI assistant, and we'll be happy to assist you with any questions or concerns.</p>
+                    <form method="POST" action="/api/tickets" class="w-full max-w-md">
+                        <div class="flex gap-2">
+                            <input type="text" 
+                                   name="message" 
+                                   required 
+                                   placeholder="Type your message to start a chat..."
+                                   class="flex-1 rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <button type="submit" 
+                                    class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600">
+                                Start Chat
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
         </div>
     </div>
 </body>
