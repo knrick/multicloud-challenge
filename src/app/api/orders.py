@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from typing import Dict, Any
-from ..services.order_service import OrderService
+from services.order_service import OrderService
 
 router = APIRouter()
 order_service = OrderService()
