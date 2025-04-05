@@ -16,7 +16,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     Lambda handler to list products from DynamoDB.
     Can filter by name if provided in the query parameters.
-    Returns a properly formatted HTTP response as expected by Bedrock agent.
+    Returns products array directly in the response body as expected by Bedrock agent.
     """
     try:
         # Log the incoming event
@@ -59,9 +59,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'headers': {
                 'Content-Type': 'application/json'
             },
-            'body': json.dumps({
-                'products': formatted_products
-            })
+            'body': json.dumps(formatted_products)  # Return array directly, not wrapped in object
         }
 
     except Exception as e:
