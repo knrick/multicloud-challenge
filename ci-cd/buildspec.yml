@@ -46,11 +46,11 @@ phases:
       - docker push $REPOSITORY_URI:latest
       - docker push $REPOSITORY_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION
       - export imageTag=$CODEBUILD_RESOLVED_SOURCE_VERSION
-      - cd ../../
       
       # Update Lambda function
       - echo Updating Lambda function...
       - aws lambda update-function-code --function-name cloudmart-list-products --zip-file fileb://product-recommendations/function.zip
+      - cd ..
       
       # Deploy to EKS
       - aws eks update-kubeconfig --region us-east-1 --name cloudmart
