@@ -59,6 +59,9 @@ phases:
       - echo $IMAGE_URI
       - sed -i "s|CONTAINER_IMAGE|$IMAGE_URI|g" kubernetes/cloudmart.yaml
       - kubectl apply -f kubernetes/cloudmart.yaml
+      - echo "Restarting deployment to pull new image..."
+      - kubectl rollout restart deployment cloudmart
+      - kubectl rollout status deployment cloudmart --timeout=300s
     env:
       exported-variables: ["imageTag"]
 artifacts:

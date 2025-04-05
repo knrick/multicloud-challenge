@@ -28,12 +28,36 @@ async def home_page(request: Request):
 
 @app.get("/tickets")
 async def tickets_page(request: Request):
-    """Serve the tickets page"""
+    """Serve the tickets list page"""
     ticket_service = TicketService()
     tickets = await ticket_service.list_tickets()
     return templates.TemplateResponse(
         "tickets.html",
         {"request": request, "tickets": tickets}
+    )
+
+@app.get("/tickets/new")
+async def new_ticket_page(request: Request):
+    """Serve the new ticket page"""
+    return templates.TemplateResponse(
+        "ticket_conversation.html",
+        {"request": request, "ticket": None}
+    )
+
+@app.get("/tickets/{ticket_id}")
+async def ticket_conversation_page(request: Request, ticket_id: str):
+    """Serve the ticket conversation page"""
+    ticket_service = TicketService()
+    ticket = await ticket_service.get_ticket(ticket_id)
+    if not ticket:
+        return templates.TemplateResponse(
+            "404.html",
+            {"request": request},
+            status_code=404
+        )
+    return templates.TemplateResponse(
+        "ticket_conversation.html",
+        {"request": request, "ticket": ticket}
     )
 
 # Protected routes

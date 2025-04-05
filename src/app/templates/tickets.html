@@ -11,73 +11,64 @@
     <div class="container mx-auto px-4 py-8">
         <div class="flex justify-between items-center mb-8">
             <h1 class="text-3xl font-bold">Support Tickets</h1>
-            <a href="/" class="text-blue-500 hover:text-blue-600">Back to Home</a>
-        </div>
-        
-        <!-- Create Ticket Form -->
-        <div class="bg-white p-6 rounded-lg shadow mb-8">
-            <h2 class="text-xl font-semibold mb-4">Create New Ticket</h2>
-            <form method="POST" action="/api/tickets" class="space-y-4">
-                <div>
-                    <label for="title" class="block text-sm font-medium text-gray-700">Title</label>
-                    <input type="text" id="title" name="title" required
-                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
-                    <textarea id="description" name="description" rows="4" required
-                              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
-                </div>
-                <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                    Submit Ticket
-                </button>
-            </form>
-        </div>
-        
-        <!-- Tickets List -->
-        <div class="space-y-4">
-            {% for ticket in tickets %}
-            <div class="bg-white p-6 rounded-lg shadow">
-                <div class="flex justify-between items-start mb-4">
-                    <div>
-                        <h3 class="text-lg font-semibold">{{ ticket.title }}</h3>
-                        <p class="text-sm text-gray-500">Created: {{ ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
-                        <p class="text-sm text-gray-500">Updated: {{ ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
-                    </div>
-                    <span class="px-2 py-1 text-sm rounded-full
-                        {% if ticket.status == 'open' %}bg-yellow-100 text-yellow-800
-                        {% elif ticket.status == 'in_progress' %}bg-blue-100 text-blue-800
-                        {% elif ticket.status == 'resolved' %}bg-green-100 text-green-800
-                        {% else %}bg-gray-100 text-gray-800{% endif %}">
-                        {{ ticket.status }}
-                    </span>
-                </div>
-
-                <!-- Conversation History -->
-                <div class="space-y-4 mb-4">
-                    {% for message in ticket.messages %}
-                    <div class="flex {% if message.role == 'assistant' %}justify-start{% else %}justify-end{% endif %}">
-                        <div class="max-w-3/4 {% if message.role == 'assistant' %}bg-gray-100{% else %}bg-blue-100{% endif %} rounded-lg p-3">
-                            <p class="text-sm text-gray-600 mb-1">{{ message.role|title }}</p>
-                            <p class="text-gray-800">{{ message.content }}</p>
-                            <p class="text-xs text-gray-500 mt-1">{{ message.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</p>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-
-                <!-- Continue Conversation Form -->
-                {% if ticket.status != 'closed' and ticket.status != 'resolved' %}
-                <form method="POST" action="/api/tickets/{{ ticket.id }}/message" class="mt-4 flex gap-2">
-                    <input type="text" name="message" required placeholder="Type your message..."
-                           class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                        Send
-                    </button>
-                </form>
-                {% endif %}
+            <div class="flex gap-4 items-center">
+                <a href="/tickets/new" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                    Create New Ticket
+                </a>
+                <a href="/" class="text-blue-500 hover:text-blue-600">Back to Home</a>
             </div>
-            {% endfor %}
+        </div>
+        
+        <!-- Tickets Table -->
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Ticket ID
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Title
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Created
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Last Updated
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for ticket in tickets %}
+                    <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='/tickets/{{ ticket.id }}'">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            #{{ ticket.id[:8] }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {{ ticket.title }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 py-1 text-xs rounded-full font-medium
+                                {% if ticket.status == 'open' %}bg-yellow-100 text-yellow-800
+                                {% elif ticket.status == 'in_progress' %}bg-blue-100 text-blue-800
+                                {% elif ticket.status == 'resolved' %}bg-green-100 text-green-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ ticket.status }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </body>
