@@ -1,7 +1,12 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 import uuid
+
+class Message(BaseModel):
+    role: str = Field(..., pattern="^(user|assistant)$")
+    content: str
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 class TicketBase(BaseModel):
     title: str = Field(..., min_length=1, max_length=200)
@@ -16,6 +21,8 @@ class Ticket(TicketBase):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     ai_response: Optional[str] = None
+    thread_id: Optional[str] = None
+    messages: List[Message] = Field(default_factory=list)
     
     class Config:
         from_attributes = True 

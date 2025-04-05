@@ -42,6 +42,7 @@
                     <div>
                         <h3 class="text-lg font-semibold">{{ ticket.title }}</h3>
                         <p class="text-sm text-gray-500">Created: {{ ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                        <p class="text-sm text-gray-500">Updated: {{ ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
                     </div>
                     <span class="px-2 py-1 text-sm rounded-full
                         {% if ticket.status == 'open' %}bg-yellow-100 text-yellow-800
@@ -51,12 +52,29 @@
                         {{ ticket.status }}
                     </span>
                 </div>
-                <p class="text-gray-700 mb-4">{{ ticket.description }}</p>
-                {% if ticket.ai_response %}
-                <div class="bg-blue-50 p-4 rounded">
-                    <h4 class="font-semibold mb-2">AI Support Response:</h4>
-                    <p class="text-gray-700">{{ ticket.ai_response }}</p>
+
+                <!-- Conversation History -->
+                <div class="space-y-4 mb-4">
+                    {% for message in ticket.messages %}
+                    <div class="flex {% if message.role == 'assistant' %}justify-start{% else %}justify-end{% endif %}">
+                        <div class="max-w-3/4 {% if message.role == 'assistant' %}bg-gray-100{% else %}bg-blue-100{% endif %} rounded-lg p-3">
+                            <p class="text-sm text-gray-600 mb-1">{{ message.role|title }}</p>
+                            <p class="text-gray-800">{{ message.content }}</p>
+                            <p class="text-xs text-gray-500 mt-1">{{ message.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
                 </div>
+
+                <!-- Continue Conversation Form -->
+                {% if ticket.status != 'closed' and ticket.status != 'resolved' %}
+                <form method="POST" action="/api/tickets/{{ ticket.id }}/message" class="mt-4 flex gap-2">
+                    <input type="text" name="message" required placeholder="Type your message..."
+                           class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                        Send
+                    </button>
+                </form>
                 {% endif %}
             </div>
             {% endfor %}
