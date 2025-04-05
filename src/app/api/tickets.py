@@ -24,8 +24,8 @@ async def get_ticket(ticket_id: str):
 async def create_ticket(message: str = Form(...)):
     """Create a new ticket with initial message"""
     try:
-        await ticket_service.create_ticket(message)
-        return RedirectResponse(url="/tickets", status_code=303)
+        ticket = await ticket_service.create_ticket(message)
+        return RedirectResponse(url=f"/tickets?ticket_id={ticket.id}", status_code=303)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
