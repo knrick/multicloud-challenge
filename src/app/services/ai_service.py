@@ -251,39 +251,39 @@ class AIService:
             response = self.bedrock_client.invoke_agent(**params)
             logger.info(f"Raw response from Bedrock: {response}")
             
-            # Process response
-            if not response or not response.get('completion') or not response['completion'].get('options', {}).get('messageStream'):
-                logger.warn("Received empty or unexpected response from Bedrock Agent")
-                return "I'm sorry, but I couldn't generate a response at the moment. Please try again later."
-
-            # Process the messageStream
-            message_stream = response['completion']['options']['messageStream']
+            # Process the event stream response
             full_message = ""
+            event_stream = response['completion']
             
-            for chunk in message_stream:
-                logger.info(f"Raw chunk: {json.dumps(chunk, indent=2)}")
+            for event in event_stream:
+                # Log raw event for debugging
+                logger.info(f"Raw event: {event}")
                 
-                if chunk and isinstance(chunk, dict) and chunk.get('body'):
+                # Process event payload
+                if hasattr(event, 'raw_payload'):
                     try:
-                        # Convert the body to a Buffer
-                        body_bytes = bytes(chunk['body'])
-                        body_str = body_bytes.decode('utf-8')
-                        
-                        try:
-                            body_json = json.loads(body_str)
-                            if body_json.get('bytes'):
-                                decoded_text = base64.b64decode(body_json['bytes']).decode('utf-8')
+                        payload = json.loads(event.raw_payload.decode('utf-8'))
+                        if 'chunk' in payload and 'bytes' in payload['chunk']:
+                            # Decode base64 content if present
+                            try:
+                                decoded_text = base64.b64decode(payload['chunk']['bytes']).decode('utf-8')
                                 full_message += decoded_text
                                 logger.info(f"Decoded text: {decoded_text}")
-                        except json.JSONDecodeError:
-                            # If not JSON, use the string directly
-                            full_message += body_str
-                            logger.info(f"Using raw text: {body_str}")
-                    except Exception as e:
-                        logger.error(f"Error processing message chunk: {e}")
-                        continue
-                else:
-                    logger.warn(f"Unexpected chunk type: {type(chunk)}, {chunk}")
+                            except Exception as e:
+                                logger.error(f"Error decoding base64 content: {e}")
+                        elif 'text' in payload:
+                            # Handle plain text responses
+                            full_message += payload['text']
+                            logger.info(f"Plain text: {payload['text']}")
+                    except json.JSONDecodeError as e:
+                        logger.error(f"Error parsing event payload: {e}")
+                        # Try to use raw payload as text
+                        try:
+                            text = event.raw_payload.decode('utf-8')
+                            full_message += text
+                            logger.info(f"Using raw text: {text}")
+                        except Exception as e:
+                            logger.error(f"Error decoding raw payload: {e}")
             
             logger.info(f"Final full message: {full_message}")
             
