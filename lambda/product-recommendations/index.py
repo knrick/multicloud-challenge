@@ -12,11 +12,11 @@ logger.setLevel(logging.INFO)
 dynamodb = boto3.resource('dynamodb')
 table = dynamodb.Table(os.environ['PRODUCTS_TABLE'])
 
-def handler(event: Dict[str, Any], context: Any) -> List[Dict[str, Any]]:
+def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     Lambda handler to list products from DynamoDB.
     Can filter by name if provided in the query parameters.
-    Returns a list of products directly as expected by the Bedrock agent.
+    Returns a properly formatted HTTP response as expected by Bedrock agent.
     """
     try:
         # Log the incoming event
@@ -54,8 +54,24 @@ def handler(event: Dict[str, Any], context: Any) -> List[Dict[str, Any]]:
         ]
         
         logger.info(f"Returning {len(formatted_products)} formatted products")
-        return formatted_products
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Content-Type': 'application/json'
+            },
+            'body': json.dumps({
+                'products': formatted_products
+            })
+        }
 
     except Exception as e:
         logger.error(f"Error processing request: {str(e)}", exc_info=True)
-        raise  # Let AWS Lambda handle the error response formatting 
+        return {
+            'statusCode': 500,
+            'headers': {
+                'Content-Type': 'application/json'
+            },
+            'body': json.dumps({
+                'error': str(e)
+            })
+        } 
