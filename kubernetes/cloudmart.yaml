@@ -40,6 +40,16 @@ spec:
             secretKeyRef:
               name: cloudmart-secrets
               key: openai-api-key
+        - name: BEDROCK_AGENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: cloudmart-secrets
+              key: bedrock-agent-id
+        - name: BEDROCK_AGENT_ALIAS_ID
+          valueFrom:
+            secretKeyRef:
+              name: cloudmart-secrets
+              key: bedrock-agent-alias-id
         resources:
           requests:
             cpu: "100m"

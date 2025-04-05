@@ -6,6 +6,7 @@
     <title>CloudMart - Products</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="{{ url_for('static', path='css/main.css') }}">
+    <script src="{{ url_for('static', path='js/chat.js') }}"></script>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         .container { max-width: 1200px; margin: 0 auto; }
@@ -49,101 +50,35 @@
         </div>
 
         <!-- AI Chat Widget -->
-        <button class="chat-toggle bg-blue-500 text-white p-4 rounded-full shadow-lg hover:bg-blue-600" onclick="toggleChat()">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-            </svg>
-        </button>
-
-        <div class="chat-widget bg-white rounded-lg shadow-lg flex flex-col">
-            <div class="p-4 border-b flex justify-between items-center bg-blue-500 text-white rounded-t-lg">
-                <h3 class="font-semibold">Product Assistant</h3>
-                <button onclick="toggleChat()" class="text-white hover:text-gray-200">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-            <div id="chat-messages" class="flex-1 p-4 overflow-y-auto max-h-[400px] space-y-4"></div>
-            <div class="p-4 border-t">
-                <form onsubmit="sendMessage(event)" class="flex gap-2">
-                    <input type="text" 
-                           id="message-input"
-                           placeholder="Ask about our products..."
-                           class="flex-1 rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                    <button type="submit" 
-                            class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
-                        Send
-                    </button>
+        <div class="fixed bottom-4 right-4 z-50">
+            <button onclick="window.chatWidget.toggleChat()" class="bg-blue-500 hover:bg-blue-600 text-white rounded-full p-4 shadow-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+            </button>
+            
+            <div id="chat-widget" class="hidden fixed bottom-20 right-4 w-96 h-[500px] bg-white rounded-lg shadow-xl flex flex-col">
+                <div class="bg-blue-500 text-white p-4 rounded-t-lg">
+                    <h3 class="text-lg font-semibold">Product Assistant</h3>
+                </div>
+                
+                <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
+                
+                <form onsubmit="window.chatWidget.sendMessage(event)" class="border-t p-4">
+                    <div class="flex space-x-2">
+                        <input
+                            type="text"
+                            id="message-input"
+                            class="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Ask about products..."
+                        />
+                        <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
+                            Send
+                        </button>
+                    </div>
                 </form>
             </div>
         </div>
     </div>
-
-    <script>
-        let sessionId = null;
-
-        async function initChat() {
-            try {
-                const response = await fetch('/api/ai/bedrock/start', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                const data = await response.json();
-                sessionId = data.sessionId;
-            } catch (error) {
-                console.error('Error initializing chat:', error);
-            }
-        }
-
-        function toggleChat() {
-            const widget = document.querySelector('.chat-widget');
-            const isHidden = widget.style.display === 'none' || !widget.style.display;
-            widget.style.display = isHidden ? 'flex' : 'none';
-            
-            if (isHidden && !sessionId) {
-                initChat();
-            }
-        }
-
-        function appendMessage(content, isUser) {
-            const messagesDiv = document.getElementById('chat-messages');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
-            
-            const bubble = document.createElement('div');
-            bubble.className = `max-w-[70%] rounded-lg p-3 ${isUser ? 'bg-blue-100' : 'bg-gray-100'}`;
-            bubble.textContent = content;
-            
-            messageDiv.appendChild(bubble);
-            messagesDiv.appendChild(messageDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        async function sendMessage(event) {
-            event.preventDefault();
-            const input = document.getElementById('message-input');
-            const message = input.value.trim();
-            
-            if (!message) return;
-            
-            appendMessage(message, true);
-            input.value = '';
-            
-            try {
-                const response = await fetch('/api/ai/bedrock/message', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ sessionId, message })
-                });
-                
-                const data = await response.json();
-                appendMessage(data.response, false);
-            } catch (error) {
-                console.error('Error sending message:', error);
-                appendMessage('Sorry, there was an error processing your message.', false);
-            }
-        }
-    </script>
 </body>
 </html> 

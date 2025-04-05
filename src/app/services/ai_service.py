@@ -1,18 +1,48 @@
 import os
 import json
 import boto3
+import base64
+import asyncio
 from openai import OpenAI
 from typing import Dict, Any, List
 from datetime import datetime
 from services.order_service import OrderService
+import logging
+from boto3.session import Session
+from botocore.exceptions import ClientError
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class AIService:
     def __init__(self):
-        self.openai = OpenAI()
-        self.assistant_id = os.getenv('OPENAI_ASSISTANT_ID')
-        self.bedrock_client = boto3.client('bedrock-agent-runtime')
-        self.agent_id = os.getenv('BEDROCK_AGENT_ID')
-        self.agent_alias_id = os.getenv('BEDROCK_AGENT_ALIAS_ID')
+        # Initialize OpenAI
+        try:
+            self.openai = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+            self.assistant_id = os.getenv('OPENAI_ASSISTANT_ID')
+            if not self.assistant_id:
+                logger.error("OpenAI assistant ID not configured")
+                raise ValueError("OPENAI_ASSISTANT_ID must be set")
+        except Exception as e:
+            logger.error(f"Error initializing OpenAI client: {str(e)}")
+            raise
+
+        # Initialize Bedrock
+        try:
+            self.bedrock_client = boto3.client('bedrock-agent-runtime')
+            self.agent_id = os.getenv('BEDROCK_AGENT_ID')
+            self.agent_alias_id = os.getenv('BEDROCK_AGENT_ALIAS_ID')
+            
+            if not self.agent_id or not self.agent_alias_id:
+                logger.error("Bedrock agent configuration missing")
+                raise ValueError("BEDROCK_AGENT_ID and BEDROCK_AGENT_ALIAS_ID must be set")
+                
+            logger.info("Bedrock client initialized successfully")
+        except Exception as e:
+            logger.error(f"Error initializing Bedrock client: {str(e)}")
+            raise
+        
         self.order_service = OrderService()
         
         # Create OpenAI assistant if not exists
@@ -23,13 +53,11 @@ class AIService:
         """Create an OpenAI assistant for customer support"""
         assistant = self.openai.beta.assistants.create(
             name="CloudMart Customer Support",
-            instructions="""You are a customer support assistant for CloudMart, an e-commerce platform.
-            Your role is to help customers with their inquiries and issues.
-            Be professional, helpful, and empathetic. Focus on providing clear solutions.
-            If a technical issue is reported, provide troubleshooting steps.
-            For product-related questions, guide customers to the appropriate resources.
-            For complex issues, explain that a human support agent will review the ticket.
-            You can also help with order management, including canceling or deleting orders.""",
+            instructions="""You are a customer support agent for CloudMart, an e-commerce platform.
+            Your role is to assist customers with general inquiries, order issues, and provide helpful information about using the CloudMart platform.
+            You don't have direct access to specific product or inventory information.
+            Always be polite, patient, and focus on providing excellent customer service.
+            If a customer asks about specific products or inventory, politely explain that you don't have access to that information and suggest they check the website or speak with a sales representative.""",
             model="gpt-4-turbo-preview",
             tools=[{
                 "type": "function",
@@ -67,118 +95,188 @@ class AIService:
         )
         return assistant.id
 
-    async def create_openai_conversation(self) -> str:
-        """Create a new OpenAI thread"""
-        thread = self.openai.beta.threads.create()
-        return thread.id
+    # OpenAI Methods
+    async def create_conversation(self) -> str:
+        """Create a new OpenAI conversation thread"""
+        try:
+            thread = await self.openai.beta.threads.create()
+            return thread.id
+        except Exception as e:
+            logger.error(f"Error creating OpenAI thread: {str(e)}")
+            raise
 
-    async def send_openai_message(self, thread_id: str, message: str) -> str:
-        """Send a message to OpenAI conversation and handle function calls"""
-        # Add user message to thread
-        self.openai.beta.threads.messages.create(
-            thread_id=thread_id,
-            role="user",
-            content=message
-        )
-
-        # Run the assistant
-        run = self.openai.beta.threads.runs.create(
-            thread_id=thread_id,
-            assistant_id=self.assistant_id
-        )
-
-        # Wait for completion or handle function calls
-        while True:
-            run = self.openai.beta.threads.runs.retrieve(
+    async def send_message(self, thread_id: str, message: str) -> str:
+        """Send a message to OpenAI assistant and get response"""
+        try:
+            # Create message
+            await self.openai.beta.threads.messages.create(
                 thread_id=thread_id,
-                run_id=run.id
+                role="user",
+                content=message
             )
-            
-            if run.status == "requires_action":
-                # Handle function calls
-                tool_calls = run.required_action.submit_tool_outputs.tool_calls
-                tool_outputs = []
-                
-                for tool_call in tool_calls:
-                    args = json.loads(tool_call.function.arguments)
-                    order_id = args["orderId"]
-                    result = ""
-                    
-                    try:
-                        order = await self.order_service.get_order(order_id)
-                        if not order:
-                            result = f"Order with ID {order_id} does not exist."
-                        elif tool_call.function.name == "delete_order":
-                            await self.order_service.delete_order(order_id)
-                            result = f"Order {order_id} has been successfully deleted."
-                        elif tool_call.function.name == "cancel_order":
-                            updated_order = await self.order_service.cancel_order(order_id)
-                            result = f"Order {order_id} has been successfully canceled. New status: {updated_order.status}"
-                    except Exception as e:
-                        result = f"An error occurred while processing the order: {str(e)}"
-                    
-                    tool_outputs.append({
-                        "tool_call_id": tool_call.id,
-                        "output": result
-                    })
-                
-                # Submit tool outputs back to the assistant
-                if tool_outputs:
-                    await self.openai.beta.threads.runs.submit_tool_outputs(
-                        thread_id=thread_id,
-                        run_id=run.id,
-                        tool_outputs=tool_outputs
-                    )
-            elif run.status == "completed":
-                break
-            elif run.status == "failed":
-                raise Exception(f"Run failed: {run.last_error}")
-            
-            # Wait before checking again
-            await asyncio.sleep(1)
 
-        # Get the assistant's response
-        messages = self.openai.beta.threads.messages.list(thread_id=thread_id)
-        for message in messages.data:
-            if message.role == "assistant":
-                return message.content[0].text.value
-        
-        return "No response generated"
+            # Create run with tools
+            run = await self.openai.beta.threads.runs.create(
+                thread_id=thread_id,
+                assistant_id=self.assistant_id,
+                tools=[
+                    {"type": "function", "function": {
+                        "name": "delete_order",
+                        "description": "Delete an order by order ID",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "orderId": {
+                                    "type": "string",
+                                    "description": "The ID of the order to be deleted"
+                                }
+                            },
+                            "required": ["orderId"]
+                        }
+                    }},
+                    {"type": "function", "function": {
+                        "name": "cancel_order",
+                        "description": "Cancel an order by changing its status to 'canceled'",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "orderId": {
+                                    "type": "string",
+                                    "description": "The ID of the order to be canceled"
+                                }
+                            },
+                            "required": ["orderId"]
+                        }
+                    }}
+                ]
+            )
 
+            # Wait for completion and handle tool calls
+            while True:
+                run_status = await self.openai.beta.threads.runs.retrieve(
+                    thread_id=thread_id,
+                    run_id=run.id
+                )
+                
+                if run_status.status == "requires_action":
+                    tool_calls = run_status.required_action.submit_tool_outputs.tool_calls
+                    tool_outputs = []
+
+                    for tool_call in tool_calls:
+                        args = json.loads(tool_call.function.arguments)
+                        order_id = args["orderId"]
+                        result = None
+
+                        try:
+                            order = await self.order_service.get_order(order_id)
+                            if not order:
+                                result = f"Order with ID {order_id} does not exist."
+                            elif tool_call.function.name == "delete_order":
+                                success = await self.order_service.delete_order(order_id)
+                                result = f"Order {order_id} has been successfully deleted." if success else f"Failed to delete order {order_id}."
+                            elif tool_call.function.name == "cancel_order":
+                                updated_order = await self.order_service.cancel_order(order_id)
+                                result = f"Order {order_id} has been successfully canceled. New status: {updated_order['status']}" if updated_order else f"Failed to cancel order {order_id}."
+                        except Exception as e:
+                            logger.error(f"Error processing order {order_id}: {str(e)}")
+                            result = f"An error occurred while processing the order: {str(e)}"
+
+                        tool_outputs.append({
+                            "tool_call_id": tool_call.id,
+                            "output": result
+                        })
+
+                    if tool_outputs:
+                        await self.openai.beta.threads.runs.submit_tool_outputs(
+                            thread_id=thread_id,
+                            run_id=run.id,
+                            tool_outputs=tool_outputs
+                        )
+                elif run_status.status == "completed":
+                    break
+                elif run_status.status == "failed":
+                    logger.error(f"Run failed: {run_status.last_error}")
+                    raise Exception("Assistant run failed")
+                
+                await asyncio.sleep(1)
+
+            # Get the assistant's response
+            messages = await self.openai.beta.threads.messages.list(thread_id=thread_id)
+            assistant_messages = [msg for msg in messages.data if msg.role == "assistant"]
+
+            if not assistant_messages:
+                raise Exception("No response from assistant")
+
+            return assistant_messages[0].content[0].text.value
+
+        except Exception as e:
+            logger.error(f"Error in OpenAI message processing: {str(e)}")
+            raise
+
+    # Bedrock Methods
     async def create_bedrock_conversation(self) -> str:
-        """Create a new Bedrock conversation ID"""
+        """Create a new Bedrock conversation ID using timestamp"""
         return str(int(datetime.now().timestamp() * 1000))
 
     async def send_bedrock_message(self, session_id: str, message: str) -> str:
         """Send a message to Bedrock agent and get response"""
         try:
-            response = self.bedrock_client.invoke_agent(
-                agentId=self.agent_id,
-                agentAliasId=self.agent_alias_id,
-                sessionId=session_id,
-                inputText=message
-            )
+            logger.info(f"Sending message to Bedrock agent: {message}")
             
-            if not response.get('completion') or not response['completion'].get('messageStream'):
+            # Prepare request parameters
+            params = {
+                'agentId': self.agent_id,
+                'agentAliasId': self.agent_alias_id,
+                'sessionId': session_id,
+                'inputText': message
+            }
+            logger.info(f"Request parameters: {params}")
+            
+            # Send request to Bedrock agent
+            response = self.bedrock_client.invoke_agent(**params)
+            logger.info(f"Raw response from Bedrock: {response}")
+            
+            # Process response
+            if not response or not response.get('completion') or not response['completion'].get('options', {}).get('messageStream'):
+                logger.warn("Received empty or unexpected response from Bedrock Agent")
                 return "I'm sorry, but I couldn't generate a response at the moment. Please try again later."
-            
-            # Process message stream
-            message_stream = response['completion']['messageStream']
+
+            # Process the messageStream
+            message_stream = response['completion']['options']['messageStream']
             full_message = ""
             
             for chunk in message_stream:
+                logger.info(f"Raw chunk: {json.dumps(chunk, indent=2)}")
+                
                 if chunk and isinstance(chunk, dict) and chunk.get('body'):
-                    body_bytes = bytes(chunk['body'])
                     try:
-                        body_json = json.loads(body_bytes.decode('utf-8'))
-                        if body_json.get('bytes'):
-                            decoded_text = base64.b64decode(body_json['bytes']).decode('utf-8')
-                            full_message += decoded_text
-                    except json.JSONDecodeError:
-                        print(f"Error decoding message chunk: {body_bytes}")
+                        # Convert the body to a Buffer
+                        body_bytes = bytes(chunk['body'])
+                        body_str = body_bytes.decode('utf-8')
+                        
+                        try:
+                            body_json = json.loads(body_str)
+                            if body_json.get('bytes'):
+                                decoded_text = base64.b64decode(body_json['bytes']).decode('utf-8')
+                                full_message += decoded_text
+                                logger.info(f"Decoded text: {decoded_text}")
+                        except json.JSONDecodeError:
+                            # If not JSON, use the string directly
+                            full_message += body_str
+                            logger.info(f"Using raw text: {body_str}")
+                    except Exception as e:
+                        logger.error(f"Error processing message chunk: {e}")
+                        continue
+                else:
+                    logger.warn(f"Unexpected chunk type: {type(chunk)}, {chunk}")
             
-            return full_message or "No response generated"
+            logger.info(f"Final full message: {full_message}")
+            
+            if full_message:
+                return full_message
+            
+            return "I'm sorry, but I couldn't generate a response at the moment. Please try again later."
             
         except Exception as e:
-            print(f"Error sending message to Bedrock: {str(e)}")
+            logger.error(f"Error sending message to Bedrock: {str(e)}")
             raise 

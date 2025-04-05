@@ -177,4 +177,16 @@ EOT
 output "bedrock_agent_role_arn" {
   value       = module.bedrock.agent_resource_role_arn
   description = "The ARN of the IAM role created for the Bedrock agent"
+}
+
+# Output the agent ID
+output "bedrock_agent_id" {
+  value       = module.bedrock.agent_id
+  description = "The ID of the Bedrock agent"
+}
+
+# Output the agent alias ID
+output "bedrock_agent_alias_id" {
+  value       = module.bedrock.agent_alias_id
+  description = "The ID of the Bedrock agent alias"
 } 
