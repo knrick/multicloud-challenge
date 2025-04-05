@@ -249,7 +249,9 @@ resource "aws_iam_role_policy" "codebuild_policy" {
           "eks:ListClusters",
           "eks:AccessKubernetesApi",
           "eks:GetToken",
-          "sts:GetCallerIdentity"
+          "sts:GetCallerIdentity",
+          "lambda:UpdateFunctionCode",
+          "lambda:GetFunction"
         ]
         Resource = "*"
       },

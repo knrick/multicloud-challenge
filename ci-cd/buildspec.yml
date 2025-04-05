@@ -3,11 +3,13 @@ phases:
   install:
     runtime-versions:
       docker: 20
+      python: 3.12
     commands:
       - curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/1.18.9/2020-11-02/bin/linux/amd64/kubectl
       - chmod +x ./kubectl
       - mv ./kubectl /usr/local/bin
       - kubectl version --short --client
+      - pip install boto3 botocore  # For Lambda function
   pre_build:
     commands:
       - echo Logging in to Amazon ECR...
@@ -16,19 +18,35 @@ phases:
       - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $REPOSITORY_URI
   build:
     commands:
-      - echo Build started on `date`
+      # Build FastAPI Docker image
       - echo Building the Docker image...
       - cd src/app
       - docker build -t $REPOSITORY_URI:latest .
       - docker tag $REPOSITORY_URI:latest $REPOSITORY_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION
+      - cd ../../
+      
+      # Package Lambda function
+      - echo Packaging Lambda function...
+      - cd lambda/product-recommendations
+      - mkdir -p build
+      - cp index.py build/
+      - cd build
+      - pip install --target . boto3 botocore
+      - zip -r ../function.zip .
+      - cd ../..
   post_build:
     commands:
-      - echo Build completed on `date`
+      # Push Docker image
       - echo Pushing the Docker image...
       - docker push $REPOSITORY_URI:latest
       - docker push $REPOSITORY_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION
       - export imageTag=$CODEBUILD_RESOLVED_SOURCE_VERSION
-      - cd ../../
+      
+      # Update Lambda function
+      - echo Updating Lambda function...
+      - aws lambda update-function-code --function-name cloudmart-list-products --zip-file fileb://product-recommendations/function.zip
+      
+      # Deploy to EKS
       - aws eks update-kubeconfig --region us-east-1 --name cloudmart
       - kubectl get nodes
       - IMAGE_URI=$REPOSITORY_URI:$imageTag
@@ -40,4 +58,5 @@ phases:
 artifacts:
   files:
     - imagedefinitions.json
-    - kubernetes/cloudmart.yaml 
+    - kubernetes/cloudmart.yaml
+    - lambda/product-recommendations/function.zip 
