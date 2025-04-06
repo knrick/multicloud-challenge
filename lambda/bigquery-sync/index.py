@@ -9,17 +9,19 @@ from decimal import Decimal
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# Initialize BigQuery client with explicit credentials
-credentials_path = 'google_credentials.json'  # File will be in the same directory as the code
-logger.info(f"Loading credentials from: {credentials_path}")
-credentials = service_account.Credentials.from_service_account_file(credentials_path)
-bigquery_client = bigquery.Client(
-    credentials=credentials,
-    project=os.environ['GOOGLE_CLOUD_PROJECT_ID']
-)
-dataset_id = os.environ['BIGQUERY_DATASET_ID']
-table_id = os.environ['BIGQUERY_TABLE_ID']
-table_ref = f"{os.environ['GOOGLE_CLOUD_PROJECT_ID']}.{dataset_id}.{table_id}"
+# Initialize BigQuery client with credentials from file
+try:
+    credentials = service_account.Credentials.from_service_account_file('google_credentials.json')
+    bigquery_client = bigquery.Client(
+        credentials=credentials,
+        project=os.environ['GOOGLE_CLOUD_PROJECT_ID']
+    )
+    dataset_id = os.environ['BIGQUERY_DATASET_ID']
+    table_id = os.environ['BIGQUERY_TABLE_ID']
+    table_ref = f"{os.environ['GOOGLE_CLOUD_PROJECT_ID']}.{dataset_id}.{table_id}"
+except Exception as e:
+    logger.error(f"Error initializing BigQuery client: {str(e)}")
+    raise
 
 class DecimalEncoder(json.JSONEncoder):
     def default(self, obj):
