@@ -144,7 +144,10 @@ class AIService:
     async def create_conversation(self) -> str:
         """Create a new OpenAI conversation thread"""
         try:
-            thread = await self.openai.beta.threads.create()
+            thread = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: self.openai.beta.threads.create()
+            )
             return thread.id
         except Exception as e:
             logger.error(f"Error creating OpenAI thread: {str(e)}")
@@ -154,23 +157,32 @@ class AIService:
         """Send a message to OpenAI assistant and get response"""
         try:
             # Create message
-            await self.openai.beta.threads.messages.create(
-                thread_id=thread_id,
-                role="user",
-                content=message
+            await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: self.openai.beta.threads.messages.create(
+                    thread_id=thread_id,
+                    role="user",
+                    content=message
+                )
             )
 
             # Create run with assistant's predefined tools
-            run = await self.openai.beta.threads.runs.create(
-                thread_id=thread_id,
-                assistant_id=self.assistant_id
+            run = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: self.openai.beta.threads.runs.create(
+                    thread_id=thread_id,
+                    assistant_id=self.assistant_id
+                )
             )
 
             # Wait for completion and handle tool calls
             while True:
-                run_status = await self.openai.beta.threads.runs.retrieve(
-                    thread_id=thread_id,
-                    run_id=run.id
+                run_status = await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    lambda: self.openai.beta.threads.runs.retrieve(
+                        thread_id=thread_id,
+                        run_id=run.id
+                    )
                 )
                 
                 if run_status.status == "requires_action":
@@ -204,10 +216,13 @@ class AIService:
 
                     # Submit tool outputs back to the assistant
                     if tool_outputs:
-                        await self.openai.beta.threads.runs.submit_tool_outputs(
-                            thread_id=thread_id,
-                            run_id=run.id,
-                            tool_outputs=tool_outputs
+                        await asyncio.get_event_loop().run_in_executor(
+                            None,
+                            lambda: self.openai.beta.threads.runs.submit_tool_outputs(
+                                thread_id=thread_id,
+                                run_id=run.id,
+                                tool_outputs=tool_outputs
+                            )
                         )
                 elif run_status.status == "completed":
                     break
@@ -218,7 +233,10 @@ class AIService:
                 await asyncio.sleep(1)
             
             # Get the assistant's response
-            messages = await self.openai.beta.threads.messages.list(thread_id=thread_id)
+            messages = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: self.openai.beta.threads.messages.list(thread_id=thread_id)
+            )
             for message in messages.data:
                 if message.role == "assistant":
                     return message.content[0].text.value
@@ -249,7 +267,10 @@ class AIService:
             logger.info(f"Request parameters: {params}")
             
             # Send request to Bedrock agent
-            response = self.bedrock_client.invoke_agent(**params)
+            response = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: self.bedrock_client.invoke_agent(**params)
+            )
             logger.info(f"Raw response from Bedrock: {response}")
             
             # Process the event stream response
@@ -298,9 +319,12 @@ class AIService:
                 raise ValueError("No user messages found in thread")
 
             # Analyze sentiment
-            results = self.text_analytics_client.analyze_sentiment(
-                documents=user_messages,
-                show_opinion_mining=True
+            results = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: self.text_analytics_client.analyze_sentiment(
+                    documents=user_messages,
+                    show_opinion_mining=True
+                )
             )
 
             # Calculate average sentiment
