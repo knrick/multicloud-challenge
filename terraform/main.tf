@@ -126,6 +126,10 @@ resource "aws_dynamodb_table" "cloudmart_orders" {
     type = "S"
   }
 
+  # Enable DynamoDB Streams
+  stream_enabled = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
+
   tags = {
     Name        = "cloudmart-orders"
     Environment = "Dev"
@@ -196,24 +200,46 @@ resource "aws_iam_role_policy" "lambda_policy" {
   })
 }
 
+# Create dummy ZIP file for Lambda functions
+data "archive_file" "dummy" {
+  type        = "zip"
+  output_path = "${path.module}/lambda_function_payload.zip"
+
+  source {
+    content  = <<EOF
+def handler(event, context):
+    """Placeholder handler for initial Lambda deployment"""
+    return {
+        'statusCode': 200,
+        'body': 'Function not yet updated by CI/CD pipeline'
+    }
+EOF
+    filename = "index.py"
+  }
+}
+
 # Lambda function for listing products
 resource "aws_lambda_function" "list_products" {
-  filename         = "../lambda/product-recommendations/list_products.zip"
   function_name    = "cloudmart-list-products"
   role            = aws_iam_role.lambda_role.arn
   handler         = "index.handler"
   runtime         = "python3.12"
-
-  provisioner "local-exec" {
-    command     = "Set-Location ../lambda; ./package.ps1"
-    interpreter = ["powershell", "-Command"]
-    working_dir = path.module
-  }
+  publish         = true  # Enable versioning
+  
+  filename         = data.archive_file.dummy.output_path
+  source_code_hash = data.archive_file.dummy.output_base64sha256
 
   environment {
     variables = {
       PRODUCTS_TABLE = aws_dynamodb_table.cloudmart_products.name
     }
+  }
+
+  lifecycle {
+    ignore_changes = [
+      filename,
+      source_code_hash,
+    ]
   }
 }
 
@@ -223,4 +249,87 @@ resource "aws_lambda_permission" "allow_bedrock" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.list_products.function_name
   principal     = "bedrock.amazonaws.com"
+}
+
+# IAM Role for BigQuery Sync Lambda
+resource "aws_iam_role" "bigquery_sync_role" {
+  name = "cloudmart_bigquery_sync_role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+# IAM Policy for BigQuery Sync Lambda
+resource "aws_iam_role_policy" "bigquery_sync_policy" {
+  name = "cloudmart_bigquery_sync_policy"
+  role = aws_iam_role.bigquery_sync_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetRecords",
+          "dynamodb:GetShardIterator",
+          "dynamodb:DescribeStream",
+          "dynamodb:ListStreams",
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = [
+          "${aws_dynamodb_table.cloudmart_orders.arn}/stream/*",
+          "arn:aws:logs:*:*:*"
+        ]
+      }
+    ]
+  })
+}
+
+# Lambda function for BigQuery sync
+resource "aws_lambda_function" "bigquery_sync" {
+  function_name    = "cloudmart-bigquery-sync"
+  role            = aws_iam_role.bigquery_sync_role.arn
+  handler         = "index.handler"
+  runtime         = "python3.12"
+  timeout         = 60
+  publish         = true  # Enable versioning
+  
+  filename         = data.archive_file.dummy.output_path
+  source_code_hash = data.archive_file.dummy.output_base64sha256
+
+  environment {
+    variables = {
+      GOOGLE_CLOUD_PROJECT_ID = "cloudmart-456007"
+      BIGQUERY_DATASET_ID     = "cloudmart"
+      BIGQUERY_TABLE_ID       = "cloudmart-orders"
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [
+      filename,
+      source_code_hash,
+    ]
+  }
+}
+
+# Event source mapping for DynamoDB Streams to Lambda
+resource "aws_lambda_event_source_mapping" "orders_stream" {
+  event_source_arn  = aws_dynamodb_table.cloudmart_orders.stream_arn
+  function_name     = aws_lambda_function.bigquery_sync.arn
+  starting_position = "LATEST"
+  batch_size        = 100
+  maximum_retry_attempts = 3
 }

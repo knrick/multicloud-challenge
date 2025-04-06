@@ -14,7 +14,7 @@ phases:
       - kubectl version --short --client
       # Install Python dependencies
       - python3 -m pip install --upgrade pip
-      - python3 -m pip install boto3 botocore
+      - python3 -m pip install boto3 botocore google-cloud-bigquery
   pre_build:
     commands:
       - echo Logging in to Amazon ECR...
@@ -30,13 +30,24 @@ phases:
       - docker tag $REPOSITORY_URI:latest $REPOSITORY_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION
       - cd ../../
       
-      # Package Lambda function
-      - echo Packaging Lambda function...
+      # Package Product Recommendations Lambda function
+      - echo Packaging Product Recommendations Lambda function...
       - cd lambda/product-recommendations
       - mkdir -p build
       - cp index.py build/
       - cd build
       - python3 -m pip install --target . boto3 botocore
+      - zip -r ../function.zip .
+      - cd ../..
+      
+      # Package BigQuery Sync Lambda function
+      - echo Packaging BigQuery Sync Lambda function...
+      - cd bigquery-sync
+      - mkdir -p build
+      - cp index.py build/
+      - cp google_credentials.json build/
+      - cd build
+      - python3 -m pip install --target . boto3 botocore google-cloud-bigquery
       - zip -r ../function.zip .
       - cd ../..
   post_build:
@@ -47,10 +58,11 @@ phases:
       - docker push $REPOSITORY_URI:$CODEBUILD_RESOLVED_SOURCE_VERSION
       - export imageTag=$CODEBUILD_RESOLVED_SOURCE_VERSION
       
-      # Update Lambda function
-      - echo Updating Lambda function...
+      # Update Lambda functions
+      - echo Updating Lambda functions...
       - cd ..
       - aws lambda update-function-code --function-name cloudmart-list-products --zip-file fileb://lambda/product-recommendations/function.zip
+      - aws lambda update-function-code --function-name cloudmart-bigquery-sync --zip-file fileb://lambda/bigquery-sync/function.zip
       
       # Deploy to EKS
       - aws eks update-kubeconfig --region us-east-1 --name cloudmart
@@ -68,4 +80,5 @@ artifacts:
   files:
     - imagedefinitions.json
     - kubernetes/cloudmart.yaml
-    - lambda/product-recommendations/function.zip 
+    - lambda/product-recommendations/function.zip
+    - lambda/bigquery-sync/function.zip 
