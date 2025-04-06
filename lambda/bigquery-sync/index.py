@@ -2,14 +2,21 @@ import os
 import json
 import logging
 from google.cloud import bigquery
+from google.oauth2 import service_account
 from decimal import Decimal
 
 # Set up logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# Initialize BigQuery client
-bigquery_client = bigquery.Client()
+# Initialize BigQuery client with explicit credentials
+credentials_path = 'google_credentials.json'  # File will be in the same directory as the code
+logger.info(f"Loading credentials from: {credentials_path}")
+credentials = service_account.Credentials.from_service_account_file(credentials_path)
+bigquery_client = bigquery.Client(
+    credentials=credentials,
+    project=os.environ['GOOGLE_CLOUD_PROJECT_ID']
+)
 dataset_id = os.environ['BIGQUERY_DATASET_ID']
 table_id = os.environ['BIGQUERY_TABLE_ID']
 table_ref = f"{os.environ['GOOGLE_CLOUD_PROJECT_ID']}.{dataset_id}.{table_id}"

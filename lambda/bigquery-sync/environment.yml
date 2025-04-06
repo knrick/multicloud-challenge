@@ -5,4 +5,5 @@ channels:
 dependencies:
   - python=3.12
   - boto3
-  - google-cloud-bigquery 
+  - google-cloud-bigquery
+  - google-auth 

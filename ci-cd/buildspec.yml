@@ -46,7 +46,7 @@ phases:
       - cd lambda/bigquery-sync/build
       # Create Google credentials from environment variables
       - echo "$GOOGLE_CREDENTIALS" > google_credentials.json
-      - python3 -m pip install --target . boto3 botocore google-cloud-bigquery
+      - python3 -m pip install --target . boto3 botocore google-cloud-bigquery google-auth
       - zip -r ../function.zip .
       - cd ../../..
   post_build:
