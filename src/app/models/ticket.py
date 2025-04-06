@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Optional, Dict
 from datetime import datetime
 import uuid
 
@@ -15,6 +15,8 @@ class Ticket(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     status: str = Field(default="open", pattern="^(open|closed)$")
+    sentimentScores: Optional[Dict[str, float]] = None
+    overallSentiment: Optional[str] = None
     
     class Config:
         from_attributes = True 

@@ -30,6 +30,7 @@ cloudmart-backend-example/
 cloudmart-frontend-example/
 cloudmart-backend-final-example/
 cloudmart-frontend-final-example/
+*.ipynb
 
 # IDE
 .vscode/

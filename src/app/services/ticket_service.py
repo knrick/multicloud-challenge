@@ -5,9 +5,9 @@ from models.ticket import Ticket, Message
 import os
 import json
 from datetime import datetime
-from openai import OpenAI
 import asyncio
 import logging
+from services.ai_service import AIService
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -18,69 +18,11 @@ class TicketService:
         try:
             self.dynamodb = boto3.resource('dynamodb')
             self.table = self.dynamodb.Table('cloudmart-tickets')
-            
-            # Check if OPENAI_API_KEY is set
-            api_key = os.getenv('OPENAI_API_KEY')
-            if not api_key:
-                logger.error("OPENAI_API_KEY environment variable is not set")
-                raise ValueError("OPENAI_API_KEY environment variable is not set")
-            
-            self.openai = OpenAI()
-            logger.info("OpenAI client initialized successfully")
-            
-            # Initialize OpenAI assistant if not exists
-            self.assistant_id = os.getenv('OPENAI_ASSISTANT_ID')
-            if not self.assistant_id:
-                logger.info("No assistant ID found, creating new assistant")
-                self.assistant_id = self._create_assistant()
-                logger.info(f"Created new assistant with ID: {self.assistant_id}")
+            self.ai_service = AIService()
+            logger.info("TicketService initialized successfully")
         except Exception as e:
             logger.error(f"Error initializing TicketService: {str(e)}")
             raise
-    
-    def _create_assistant(self) -> str:
-        """Create an OpenAI assistant for customer support"""
-        assistant = self.openai.beta.assistants.create(
-            name="CloudMart Customer Support",
-            instructions="""You are a customer support agent for CloudMart, an e-commerce platform.
-            Your role is to assist customers with general inquiries, order issues, and provide helpful information about using the CloudMart platform.
-            You don't have direct access to specific product or inventory information.
-            Always be polite, patient, and focus on providing excellent customer service.
-            If a customer asks about specific products or inventory, politely explain that you don't have access to that information and suggest they check the website or speak with a sales representative.""",
-            model="gpt-4-turbo-preview"
-        )
-        return assistant.id
-
-    async def _get_ai_response(self, thread_id: str, message: str) -> str:
-        """Get AI response for a message in a thread"""
-        # Add the message to the thread
-        self.openai.beta.threads.messages.create(
-            thread_id=thread_id,
-            role="user",
-            content=message
-        )
-        
-        # Run the assistant
-        run = self.openai.beta.threads.runs.create(
-            thread_id=thread_id,
-            assistant_id=self.assistant_id
-        )
-        
-        # Wait for completion
-        while run.status == "queued" or run.status == "in_progress":
-            run = self.openai.beta.threads.runs.retrieve(
-                thread_id=thread_id,
-                run_id=run.id
-            )
-            await asyncio.sleep(1)
-        
-        # Get the assistant's response
-        messages = self.openai.beta.threads.messages.list(thread_id=thread_id)
-        for message in messages.data:
-            if message.role == "assistant":
-                return message.content[0].text.value
-        
-        return "No response generated"
 
     async def list_tickets(self) -> List[Ticket]:
         """List all tickets"""
@@ -114,31 +56,32 @@ class TicketService:
             item = response.get('Item')
             return Ticket(**item) if item else None
         except ClientError as e:
-            print(f"Error getting ticket: {e.response['Error']['Message']}")
+            logger.error(f"Error getting ticket: {e.response['Error']['Message']}")
             return None
 
     async def create_ticket(self, message: str) -> Ticket:
         """Create a new ticket and start conversation"""
-        # Create a new thread
-        thread = self.openai.beta.threads.create()
-        
-        # Create new ticket
-        new_ticket = Ticket(thread_id=thread.id)
-        
-        # Add initial message
-        user_message = Message(role="user", content=message)
-        new_ticket.messages.append(user_message)
-        
-        # Get AI response
-        ai_response = await self._get_ai_response(thread.id, message)
-        ai_message = Message(role="assistant", content=ai_response)
-        new_ticket.messages.append(ai_message)
-        
         try:
+            # Create a new conversation with AI service
+            thread_id = await self.ai_service.create_conversation()
+            
+            # Create new ticket
+            new_ticket = Ticket(thread_id=thread_id)
+            
+            # Add initial message
+            user_message = Message(role="user", content=message)
+            new_ticket.messages.append(user_message)
+            
+            # Get AI response
+            ai_response = await self.ai_service.send_message(thread_id, message)
+            ai_message = Message(role="assistant", content=ai_response)
+            new_ticket.messages.append(ai_message)
+            
+            # Save to DynamoDB
             self.table.put_item(Item=json.loads(new_ticket.model_dump_json()))
             return new_ticket
-        except ClientError as e:
-            print(f"Error creating ticket: {e.response['Error']['Message']}")
+        except Exception as e:
+            logger.error(f"Error creating ticket: {str(e)}")
             raise
 
     async def send_message(self, ticket_id: str, message: str) -> Optional[Ticket]:
@@ -153,17 +96,18 @@ class TicketService:
             ticket.messages.append(user_message)
             
             # Get AI response
-            ai_response = await self._get_ai_response(ticket.thread_id, message)
+            ai_response = await self.ai_service.send_message(ticket.thread_id, message)
             ai_message = Message(role="assistant", content=ai_response)
             ticket.messages.append(ai_message)
             
             # Update timestamp
             ticket.updated_at = datetime.utcnow()
             
+            # Save to DynamoDB
             self.table.put_item(Item=json.loads(ticket.model_dump_json()))
             return ticket
-        except ClientError as e:
-            print(f"Error sending message: {e.response['Error']['Message']}")
+        except Exception as e:
+            logger.error(f"Error sending message: {str(e)}")
             return None
 
     async def close_ticket(self, ticket_id: str) -> Optional[Ticket]:
@@ -176,8 +120,48 @@ class TicketService:
             ticket.status = "closed"
             ticket.updated_at = datetime.utcnow()
             
-            self.table.put_item(Item=json.loads(ticket.model_dump_json()))
+            # Save the ticket
+            ticket_data = json.loads(ticket.model_dump_json())
+            self.table.put_item(Item=ticket_data)
             return ticket
         except ClientError as e:
-            print(f"Error closing ticket: {e.response['Error']['Message']}")
-            return None 
+            logger.error(f"Error closing ticket: {e.response['Error']['Message']}")
+            return None
+
+    async def update_ticket_sentiment(self, ticket_id: str, sentiment_data: dict) -> Optional[Ticket]:
+        """Update ticket with sentiment analysis results"""
+        try:
+            ticket = await self.get_ticket(ticket_id)
+            if not ticket:
+                return None
+            
+            # Update sentiment data
+            ticket.sentimentScores = sentiment_data['sentimentScores']
+            ticket.overallSentiment = sentiment_data['overallSentiment']
+            ticket.updated_at = datetime.utcnow()
+            
+            # Save the updated ticket
+            ticket_data = json.loads(ticket.model_dump_json())
+            self.table.put_item(Item=ticket_data)
+            return ticket
+        except ClientError as e:
+            logger.error(f"Error updating ticket sentiment: {e.response['Error']['Message']}")
+            return None
+
+    async def delete_ticket(self, ticket_id: str) -> bool:
+        """Delete a ticket"""
+        try:
+            # First check if ticket exists
+            ticket = await self.get_ticket(ticket_id)
+            if not ticket:
+                return False
+            
+            # Delete the ticket
+            await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: self.table.delete_item(Key={'id': ticket_id})
+            )
+            return True
+        except ClientError as e:
+            logger.error(f"Error deleting ticket: {e.response['Error']['Message']}")
+            return False 

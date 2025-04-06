@@ -55,6 +55,16 @@ spec:
             secretKeyRef:
               name: cloudmart-secrets
               key: bedrock-agent-alias-id
+        - name: AZURE_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: cloudmart-secrets
+              key: azure-endpoint
+        - name: AZURE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: cloudmart-secrets
+              key: azure-api-key
         resources:
           requests:
             cpu: "100m"
