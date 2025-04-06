@@ -116,69 +116,55 @@ def handler(event, context):
         if orders_to_load:
             logger.info(f"Preparing to load {len(orders_to_load)} orders")
             
-            # Create a temporary file for the batch load
-            with tempfile.NamedTemporaryFile(mode='w+', suffix='.json', delete=False) as temp_file:
+            # Create a temporary file for the batch load and process it
+            with tempfile.NamedTemporaryFile(mode='w+', suffix='.json') as temp_file:
+                # Write the data
                 for order in orders_to_load:
                     temp_file.write(json.dumps(order) + '\n')
                 temp_file.flush()
                 
                 logger.info(f"Created temp file at: {temp_file.name}")
-                # Debug: print file contents
-                with open(temp_file.name, 'r') as f:
-                    logger.info(f"File contents: {f.read()}")
-            
-            # Configure the load job
-            job_config = bigquery.LoadJobConfig(
-                source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
-                write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
-                schema=[
-                    bigquery.SchemaField("id", "STRING", mode="REQUIRED"),
-                    bigquery.SchemaField("items", "JSON", mode="REQUIRED"),
-                    bigquery.SchemaField("userEmail", "STRING", mode="REQUIRED"),
-                    bigquery.SchemaField("total", "FLOAT64", mode="REQUIRED"),
-                    bigquery.SchemaField("status", "STRING", mode="REQUIRED"),
-                    bigquery.SchemaField("createdAt", "TIMESTAMP", mode="REQUIRED")
-                ]
-            )
-            
-            try:
-                # Load the data
-                with open(temp_file.name, 'rb') as source_file:
-                    job = client.load_table_from_file(
-                        source_file,
-                        table_ref,
-                        job_config=job_config
-                    )
                 
-                # Wait for the job to complete
-                job.result()  # Waits for job to complete
-                logger.info(f"Job finished with state: {job.state}")
+                # Configure the load job
+                job_config = bigquery.LoadJobConfig(
+                    source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON
+                )
                 
-                if job.errors:
-                    logger.error(f"Job errors: {json.dumps(job.errors)}")
-                else:
-                    # Verify the data was loaded
-                    table = client.get_table(table_ref)
-                    logger.info(f"Loaded {table.num_rows} rows total.")
+                try:
+                    # Load the data
+                    with open(temp_file.name, 'rb') as source_file:
+                        job = client.load_table_from_file(
+                            source_file,
+                            table_ref,
+                            job_config=job_config
+                        )
                     
-                    # Query the recently inserted data
-                    query = f"""
-                    SELECT id, userEmail, total, status, createdAt
-                    FROM `{table_ref}`
-                    WHERE createdAt >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 5 MINUTE)
-                    """
-                    query_job = client.query(query)
-                    results = query_job.result()
-                    logger.info("Recent records in BigQuery:")
-                    for row in results:
-                        logger.info(f"  {dict(row.items())}")
-                
-            except Exception as e:
-                logger.error(f"Error during BigQuery load: {str(e)}")
-                raise
-            finally:
-                # Clean up
-                os.unlink(temp_file.name)
+                    # Wait for the job to complete
+                    job.result()  # Waits for job to complete
+                    logger.info(f"Job finished with state: {job.state}")
+                    
+                    if job.errors:
+                        logger.error(f"Job errors: {json.dumps(job.errors)}")
+                    else:
+                        # Verify the data was loaded
+                        table = client.get_table(table_ref)
+                        logger.info(f"Loaded {table.num_rows} rows total.")
+                        
+                        # Query the recently inserted data
+                        query = f"""
+                        SELECT id, userEmail, total, status, createdAt
+                        FROM `{table_ref}`
+                        WHERE createdAt >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 5 MINUTE)
+                        """
+                        query_job = client.query(query)
+                        results = query_job.result()
+                        logger.info("Recent records in BigQuery:")
+                        for row in results:
+                            logger.info(f"  {dict(row.items())}")
+                    
+                except Exception as e:
+                    logger.error(f"Error during BigQuery load: {str(e)}")
+                    raise
             
             logger.info(f"Successfully processed {len(orders_to_load)} orders")
         else:
