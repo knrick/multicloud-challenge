@@ -30,11 +30,12 @@ def handler(event, context):
                 
                 # Convert DynamoDB format to regular JSON
                 order_data = {
-                    'order_id': new_order['id']['S'],
-                    'user_email': new_order['userEmail']['S'],
+                    'id': new_order['id']['S'],
+                    'userEmail': new_order['userEmail']['S'],
                     'total': float(new_order['total']['N']),
                     'status': new_order['status']['S'],
-                    'created_at': new_order['createdAt']['S']
+                    'createdAt': new_order['createdAt']['S'],
+                    'items': new_order.get('items', {}).get('S', '[]')  # Handle items as JSON string
                 }
                 orders_to_load.append(order_data)
         
@@ -49,6 +50,14 @@ def handler(event, context):
             job_config = bigquery.LoadJobConfig(
                 source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
                 write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
+                schema=[
+                    bigquery.SchemaField("id", "STRING", mode="REQUIRED"),
+                    bigquery.SchemaField("items", "JSON", mode="REQUIRED"),
+                    bigquery.SchemaField("userEmail", "STRING", mode="REQUIRED"),
+                    bigquery.SchemaField("total", "FLOAT", mode="REQUIRED"),
+                    bigquery.SchemaField("status", "STRING", mode="REQUIRED"),
+                    bigquery.SchemaField("createdAt", "TIMESTAMP", mode="REQUIRED")
+                ]
             )
             
             # Load the data
