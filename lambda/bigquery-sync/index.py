@@ -79,14 +79,17 @@ def handler(event, context):
                     timestamp = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
                     formatted_timestamp = timestamp.strftime('%Y-%m-%d %H:%M:%S.%f UTC')
                     
-                    # Handle items - parse JSON from DynamoDB
-                    items_str = new_order.get('items', {}).get('S', '[]')
-                    try:
-                        # Parse JSON to validate and format it properly
-                        items = json.loads(items_str)
-                    except json.JSONDecodeError:
-                        logger.error(f"Invalid JSON in items field: {items_str}")
-                        items = []
+                    # Handle items - parse DynamoDB List type
+                    items_data = new_order.get('items', {}).get('L', [])
+                    items = []
+                    for item in items_data:
+                        if 'M' in item:  # It's a map type
+                            item_map = item['M']
+                            items.append({
+                                'quantity': int(item_map.get('quantity', {}).get('N', '0')),
+                                'productId': item_map.get('productId', {}).get('S', ''),
+                                'price': float(item_map.get('price', {}).get('N', '0'))
+                            })
                     
                     # Convert DynamoDB format to regular JSON
                     order_data = {
@@ -95,7 +98,7 @@ def handler(event, context):
                         'total': float(new_order.get('total', {}).get('N', '0')),
                         'status': new_order.get('status', {}).get('S', 'unknown'),
                         'createdAt': formatted_timestamp,
-                        'items': items  # Store as parsed JSON, not as string
+                        'items': items  # Now contains properly parsed items array
                     }
                     
                     # Validate required fields
