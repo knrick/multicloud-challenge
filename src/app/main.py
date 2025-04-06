@@ -1,10 +1,7 @@
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from services.product_service import ProductService
-from services.ticket_service import TicketService
 from core.security import verify_admin
-from fastapi.responses import RedirectResponse
 
 app = FastAPI(
     title="CloudMart",
@@ -18,61 +15,14 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # Templates
 templates = Jinja2Templates(directory="templates")
 
-# Public routes
-@app.get("/")
-async def home_page(request: Request):
-    """Serve the home page"""
-    return templates.TemplateResponse(
-        "home.html",
-        {"request": request}
-    )
-
-@app.get("/tickets")
-async def tickets_page(request: Request, ticket_id: str = None):
-    """Serve the tickets list page with optional active ticket"""
-    ticket_service = TicketService()
-    tickets = await ticket_service.list_tickets()
-    active_ticket = None
-    if ticket_id:
-        active_ticket = await ticket_service.get_ticket(ticket_id)
-    return templates.TemplateResponse(
-        "tickets.html",
-        {
-            "request": request, 
-            "tickets": tickets,
-            "active_ticket": active_ticket,
-            "active_ticket_id": ticket_id
-        }
-    )
-
-@app.get("/tickets/new")
-async def new_ticket_page(request: Request):
-    """Serve the new ticket page"""
-    return templates.TemplateResponse(
-        "ticket_conversation.html",
-        {"request": request, "ticket": None}
-    )
-
-@app.get("/tickets/{ticket_id}")
-async def ticket_conversation_page(request: Request, ticket_id: str):
-    """Redirect to tickets page with active ticket"""
-    return RedirectResponse(url=f"/tickets?ticket_id={ticket_id}")
-
-# Protected routes
-@app.get("/products")
-async def products_page(request: Request, username: str = Depends(verify_admin)):
-    """Serve the products management page (protected)"""
-    product_service = ProductService()
-    products = await product_service.list_products()
-    return templates.TemplateResponse(
-        "products.html",
-        {"request": request, "products": products, "username": username}
-    )
-
 # Import routers
 from api import products, orders, tickets, ai
+from routes import web
 
-# Include routers with authentication
+# Include web routes
+app.include_router(web.router)
+
+# Include API routers with authentication
 app.include_router(
     products.router,
     prefix="/api/products",
