@@ -55,14 +55,14 @@ def handler(event, context):
                     timestamp = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
                     formatted_timestamp = timestamp.strftime('%Y-%m-%d %H:%M:%S.%f UTC')
                     
-                    # Handle items - ensure it's valid JSON
+                    # Handle items - parse JSON from DynamoDB
                     items_str = new_order.get('items', {}).get('S', '[]')
                     try:
-                        # Validate JSON
-                        json.loads(items_str)
+                        # Parse JSON to validate and format it properly
+                        items = json.loads(items_str)
                     except json.JSONDecodeError:
                         logger.error(f"Invalid JSON in items field: {items_str}")
-                        items_str = '[]'
+                        items = []
                     
                     # Convert DynamoDB format to regular JSON
                     order_data = {
@@ -71,7 +71,7 @@ def handler(event, context):
                         'total': float(new_order.get('total', {}).get('N', '0')),
                         'status': new_order.get('status', {}).get('S', 'unknown'),
                         'createdAt': formatted_timestamp,
-                        'items': items_str
+                        'items': items  # Store as parsed JSON, not as string
                     }
                     
                     # Validate required fields
@@ -106,7 +106,7 @@ def handler(event, context):
                 write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
                 schema=[
                     bigquery.SchemaField("id", "STRING", mode="REQUIRED"),
-                    bigquery.SchemaField("items", "STRING", mode="REQUIRED"),
+                    bigquery.SchemaField("items", "JSON", mode="REQUIRED"),
                     bigquery.SchemaField("userEmail", "STRING", mode="REQUIRED"),
                     bigquery.SchemaField("total", "FLOAT64", mode="REQUIRED"),
                     bigquery.SchemaField("status", "STRING", mode="REQUIRED"),
