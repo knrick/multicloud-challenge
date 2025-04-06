@@ -41,20 +41,9 @@ phases:
       
       # Package BigQuery Sync Lambda function
       - echo Packaging BigQuery Sync Lambda function...
-      - aws eks update-kubeconfig --region us-east-1 --name cloudmart
-      - echo "Getting Google credentials from Kubernetes secret..."
-      - GOOGLE_CREDENTIALS=$(kubectl get secret cloudmart-secrets -o jsonpath='{.data.google_credentials}' | base64 --decode)
       - mkdir -p lambda/bigquery-sync/build
       - cp lambda/bigquery-sync/index.py lambda/bigquery-sync/build/
       - cd lambda/bigquery-sync/build
-      # Debug: Print what would be written to the credentials file
-      - echo "Content to be written to google_credentials.json:"
-      - echo "$GOOGLE_CREDENTIALS"
-      - echo "Writing credentials file..."
-      # Create Google credentials from environment variables
-      - echo "$GOOGLE_CREDENTIALS" > google_credentials.json
-      - echo "Content of written file:"
-      - cat google_credentials.json
       - python3 -m pip install --target . boto3 botocore google-cloud-bigquery google-auth
       - zip -r ../function.zip .
       - cd ../../..

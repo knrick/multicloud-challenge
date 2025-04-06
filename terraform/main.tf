@@ -297,6 +297,25 @@ resource "aws_iam_role_policy" "bigquery_sync_policy" {
   })
 }
 
+# Create Lambda layer for Google credentials
+data "archive_file" "google_credentials_layer" {
+  type        = "zip"
+  output_path = "${path.module}/google_credentials_layer.zip"
+
+  source {
+    content  = file("google_credentials.json")
+    filename = "google_credentials.json"
+  }
+}
+
+# Lambda layer for Google credentials
+resource "aws_lambda_layer_version" "google_credentials" {
+  filename            = data.archive_file.google_credentials_layer.output_path
+  layer_name         = "google-credentials"
+  description        = "Google Cloud credentials for BigQuery access"
+  compatible_runtimes = ["python3.12"]
+}
+
 # Lambda function for BigQuery sync
 resource "aws_lambda_function" "bigquery_sync" {
   function_name    = "cloudmart-bigquery-sync"
@@ -308,6 +327,8 @@ resource "aws_lambda_function" "bigquery_sync" {
   
   filename         = data.archive_file.dummy.output_path
   source_code_hash = data.archive_file.dummy.output_base64sha256
+
+  layers = [aws_lambda_layer_version.google_credentials.arn]
 
   environment {
     variables = {

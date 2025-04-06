@@ -8,7 +8,7 @@ terraform {
 }
 
 provider "google" {
-  credentials = file("google_credentials.json")
+  credentials = file("../google_credentials.json")
   project     = "cloudmart-456007"
   region      = "us-east1"
 }
