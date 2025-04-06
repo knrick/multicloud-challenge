@@ -4,10 +4,12 @@ from models.ticket import Ticket
 from services.ticket_service import TicketService
 from services.ai_service import AIService
 from fastapi.responses import RedirectResponse
+import logging
 
 router = APIRouter()
 ticket_service = TicketService()
 ai_service = AIService()
+logger = logging.getLogger(__name__)
 
 @router.get("/", response_model=List[Ticket])
 async def list_tickets():
@@ -51,6 +53,11 @@ async def close_ticket(ticket_id: str):
         if not ticket:
             raise HTTPException(status_code=404, detail="Ticket not found")
 
+        # Close the ticket first
+        closed_ticket = await ticket_service.close_ticket(ticket_id)
+        if not closed_ticket:
+            raise HTTPException(status_code=400, detail="Failed to close ticket")
+
         # Analyze sentiment
         sentiment_result = await ai_service.analyze_sentiment_and_save({
             "id": ticket.id,
@@ -66,12 +73,7 @@ async def close_ticket(ticket_id: str):
         # Update ticket with sentiment data
         updated_ticket = await ticket_service.update_ticket_sentiment(ticket_id, sentiment_result)
         if not updated_ticket:
-            raise HTTPException(status_code=400, detail="Failed to update ticket sentiment")
-
-        # Close the ticket
-        closed_ticket = await ticket_service.close_ticket(ticket_id)
-        if not closed_ticket:
-            raise HTTPException(status_code=400, detail="Failed to close ticket")
+            logger.warning(f"Failed to update ticket {ticket_id} with sentiment data")
 
         # Redirect back to the ticket page
         return RedirectResponse(url=f"/tickets/{ticket_id}", status_code=303)

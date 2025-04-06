@@ -13,6 +13,7 @@ from boto3.session import Session
 from botocore.exceptions import ClientError
 from azure.ai.textanalytics import TextAnalyticsClient
 from azure.core.credentials import AzureKeyCredential
+from decimal import Decimal
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -344,13 +345,13 @@ class AIService:
 
             # Calculate averages
             avg_sentiment = {
-                'positive': sum(score['positive'] for score in sentiment_scores) / len(sentiment_scores),
-                'neutral': sum(score['neutral'] for score in sentiment_scores) / len(sentiment_scores),
-                'negative': sum(score['negative'] for score in sentiment_scores) / len(sentiment_scores)
+                'positive': Decimal(str(sum(score['positive'] for score in sentiment_scores) / len(sentiment_scores))),
+                'neutral': Decimal(str(sum(score['neutral'] for score in sentiment_scores) / len(sentiment_scores))),
+                'negative': Decimal(str(sum(score['negative'] for score in sentiment_scores) / len(sentiment_scores)))
             }
 
             # Round sentiment scores to 3 decimal places
-            avg_sentiment = {k: round(v, 3) for k, v in avg_sentiment.items()}
+            avg_sentiment = {k: Decimal(str(round(float(v), 3))) for k, v in avg_sentiment.items()}
 
             # Determine overall sentiment
             if (avg_sentiment['positive'] > avg_sentiment['neutral'] and 
