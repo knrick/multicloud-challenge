@@ -133,6 +133,7 @@ def handler(event, context):
                 try:
                     # Load the data
                     with open(temp_file.name, 'rb') as source_file:
+                        logger.info(f"File contents: {source_file.read()}")
                         job = client.load_table_from_file(
                             source_file,
                             table_ref,
