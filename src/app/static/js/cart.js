@@ -9,16 +9,35 @@ class CartManager {
     initializeEventListeners() {
         // Add event listeners to all Add to Cart buttons
         document.addEventListener('DOMContentLoaded', () => {
+            // Product page event listeners
             const addToCartButtons = document.querySelectorAll('.add-to-cart-btn');
             addToCartButtons.forEach(button => {
                 button.addEventListener('click', (e) => {
-                    const productId = e.target.dataset.productId;
-                    const productName = e.target.dataset.productName;
-                    const productPrice = parseFloat(e.target.dataset.productPrice);
+                    const button = e.target.closest('.add-to-cart-btn');
+                    if (!button) return;
+                    
+                    const productId = button.dataset.productId;
+                    const productName = button.dataset.productName;
+                    const productPrice = parseFloat(button.dataset.productPrice);
                     const quantity = parseInt(document.getElementById(`quantity-${productId}`).value);
                     this.addToCart(productId, productName, productPrice, quantity);
                 });
             });
+
+            // Cart page event listeners
+            const cartItems = document.getElementById('cart-items');
+            if (cartItems) {
+                cartItems.addEventListener('click', (e) => {
+                    const removeButton = e.target.closest('.remove-from-cart-btn');
+                    if (!removeButton) return;
+                    
+                    const productId = removeButton.dataset.productId;
+                    this.removeFromCart(productId);
+                });
+
+                // Initialize cart display
+                this.updateCart();
+            }
         });
     }
 
@@ -100,15 +119,6 @@ class CartManager {
                 </div>
             </div>
         `).join('');
-
-        // Add event listeners to remove buttons
-        const removeButtons = cartItems.querySelectorAll('.remove-from-cart-btn');
-        removeButtons.forEach(button => {
-            button.addEventListener('click', (e) => {
-                const productId = e.target.dataset.productId;
-                this.removeFromCart(productId);
-            });
-        });
 
         // Update totals
         const subtotal = this.cart.reduce((total, item) => total + (item.price * item.quantity), 0);
