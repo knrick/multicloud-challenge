@@ -58,6 +58,14 @@ async def products_page(request: Request, username: str = Depends(verify_admin))
         {"request": request, "products": products, "username": username}
     )
 
+@router.get("/cart", response_class=HTMLResponse)
+async def cart_page(request: Request):
+    """Serve the shopping cart page"""
+    return templates.TemplateResponse(
+        "cart.html",
+        {"request": request}
+    )
+
 @router.get("/orders", response_class=HTMLResponse)
 async def orders_page(
     request: Request,

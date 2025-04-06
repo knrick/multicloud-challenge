@@ -8,23 +8,49 @@
     <link rel="stylesheet" href="{{ url_for('static', path='css/main.css') }}">
 </head>
 <body class="bg-gray-100">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center">
+                    <a href="/" class="text-xl font-bold text-blue-600">CloudMart</a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/products" class="text-gray-600 hover:text-blue-600">Products</a>
+                    <a href="/cart" class="text-gray-600 hover:text-blue-600">Cart (0)</a>
+                    <a href="/orders" class="text-gray-600 hover:text-blue-600">Orders</a>
+                    <a href="/tickets" class="text-gray-600 hover:text-blue-600">Support</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
     <div class="container mx-auto px-4 py-8">
         <h1 class="text-3xl font-bold mb-8">Welcome to CloudMart</h1>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div class="bg-white p-6 rounded-lg shadow">
                 <h2 class="text-xl font-semibold mb-4">Product Catalog</h2>
-                <p class="text-gray-600 mb-4">Browse our available products.</p>
+                <p class="text-gray-600 mb-4">Browse our available products and add them to your cart.</p>
                 <a href="/products" class="inline-block bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">
                     View Products
                 </a>
             </div>
             
             <div class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-semibold mb-4">Shopping Cart</h2>
+                <p class="text-gray-600 mb-4">View your cart and proceed to checkout.</p>
+                <a href="/cart" class="inline-block bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600">
+                    View Cart
+                </a>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow">
                 <h2 class="text-xl font-semibold mb-4">Customer Support</h2>
                 <p class="text-gray-600 mb-4">Need help? Create a support ticket.</p>
-                <a href="/tickets" class="inline-block bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600">
-                    Support
+                <a href="/tickets" class="inline-block bg-purple-500 text-white py-2 px-4 rounded hover:bg-purple-600">
+                    Get Support
                 </a>
             </div>
         </div>
