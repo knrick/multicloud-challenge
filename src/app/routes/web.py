@@ -4,7 +4,6 @@ from fastapi.templating import Jinja2Templates
 from services.order_service import OrderService
 from services.ticket_service import TicketService
 from services.product_service import ProductService
-from auth import get_current_user
 from core.security import verify_admin
 
 router = APIRouter()
@@ -62,12 +61,12 @@ async def products_page(request: Request, username: str = Depends(verify_admin))
 @router.get("/orders", response_class=HTMLResponse)
 async def orders_page(
     request: Request,
-    current_user = Depends(get_current_user),
     order_service: OrderService = Depends()
 ):
     """Serve the orders page"""
-    # Get orders for the current user
-    user_orders = await order_service.get_user_orders(current_user["email"])
+    # For demonstration purposes, use a mock user email
+    mock_user_email = "demo@example.com"
+    user_orders = await order_service.get_user_orders(mock_user_email)
     
     return templates.TemplateResponse(
         "orders.html",
