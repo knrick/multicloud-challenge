@@ -3,6 +3,7 @@ import json
 from decimal import Decimal
 from google.cloud import bigquery
 from google.oauth2 import service_account
+import tempfile
 
 def handler(event, context):
     """Handle DynamoDB Stream events and sync to BigQuery"""
@@ -21,6 +22,7 @@ def handler(event, context):
         table_ref = f"{os.environ['GOOGLE_CLOUD_PROJECT_ID']}.{dataset_id}.{table_id}"
         
         # Process DynamoDB Stream records
+        orders_to_load = []
         for record in event['Records']:
             if record['eventName'] == 'INSERT':
                 # Get the new order data
@@ -34,13 +36,36 @@ def handler(event, context):
                     'status': new_order['status']['S'],
                     'created_at': new_order['createdAt']['S']
                 }
-                
-                # Insert into BigQuery
-                errors = client.insert_rows_json(table_ref, [order_data])
-                if errors:
-                    print(f"Errors inserting order {order_data['order_id']}: {errors}")
-                else:
-                    print(f"Successfully synced order {order_data['order_id']} to BigQuery")
+                orders_to_load.append(order_data)
+        
+        if orders_to_load:
+            # Create a temporary file for the batch load
+            with tempfile.NamedTemporaryFile(mode='w+', suffix='.json', delete=False) as temp_file:
+                for order in orders_to_load:
+                    temp_file.write(json.dumps(order) + '\n')
+                temp_file.flush()
+            
+            # Configure the load job
+            job_config = bigquery.LoadJobConfig(
+                source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
+                write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
+            )
+            
+            # Load the data
+            with open(temp_file.name, 'rb') as source_file:
+                job = client.load_table_from_file(
+                    source_file,
+                    table_ref,
+                    job_config=job_config
+                )
+            
+            # Wait for the job to complete
+            job.result()
+            
+            # Clean up
+            os.unlink(temp_file.name)
+            
+            print(f"Successfully loaded {len(orders_to_load)} orders to BigQuery")
         
         return {
             'statusCode': 200,
