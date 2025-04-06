@@ -204,7 +204,7 @@ class AIService:
                                 result = f"Order {order_id} has been successfully deleted." if success else f"Failed to delete order {order_id}."
                             elif tool_call.function.name == "cancel_order":
                                 updated_order = await self.order_service.cancel_order(order_id)
-                                result = f"Order {order_id} has been successfully canceled. New status: {updated_order['status']}" if updated_order else f"Failed to cancel order {order_id}."
+                                result = f"Order {order_id} has been successfully canceled. New status: {updated_order.status}" if updated_order else f"Failed to cancel order {order_id}."
                         except Exception as e:
                             logger.error(f"Error processing order {order_id}: {str(e)}")
                             result = f"An error occurred while processing the order: {str(e)}"
