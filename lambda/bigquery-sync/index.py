@@ -8,33 +8,30 @@ from datetime import datetime
 import logging
 import sys
 
-# Force logging to stdout
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    stream=sys.stdout
-)
+# Configure logging for Lambda
 logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 def handler(event, context):
     """Handle DynamoDB Stream events and sync to BigQuery"""
-    # Immediate logging to verify function is running
-    print("Lambda function started")  # Basic print for absolute minimal logging
-    logger.info("Lambda function initialized")
+    # Log the event immediately
+    print("Lambda function started")  # Keep basic print for comparison
+    logger.info("Lambda function started")  # Should now show up in CloudWatch
     logger.info(f"Python version: {sys.version}")
     
     try:
-        # Log the event immediately
-        logger.info("Raw event received")
-        logger.info(json.dumps(event, default=str))
+        # Log the raw event
+        logger.info("Event received: %s", json.dumps(event, default=str))
         
         # Check environment variables are set
         required_env_vars = ['GOOGLE_CLOUD_PROJECT_ID', 'BIGQUERY_DATASET_ID', 'BIGQUERY_TABLE_ID']
         for var in required_env_vars:
-            if not os.environ.get(var):
-                logger.error(f"Missing required environment variable: {var}")
-                raise ValueError(f"Missing required environment variable: {var}")
-            logger.info(f"{var}: {os.environ[var]}")
+            value = os.environ.get(var)
+            if not value:
+                error_msg = f"Missing required environment variable: {var}"
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+            logger.info("Environment variable %s = %s", var, value)
             
         # Check if credentials file exists
         creds_path = '/opt/google_credentials.json'
