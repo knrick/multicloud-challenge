@@ -6,15 +6,42 @@ from google.oauth2 import service_account
 import tempfile
 from datetime import datetime
 import logging
+import sys
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Force logging to stdout
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    stream=sys.stdout
+)
+logger = logging.getLogger()
 
 def handler(event, context):
     """Handle DynamoDB Stream events and sync to BigQuery"""
+    # Immediate logging to verify function is running
+    print("Lambda function started")  # Basic print for absolute minimal logging
+    logger.info("Lambda function initialized")
+    logger.info(f"Python version: {sys.version}")
+    
     try:
-        logger.info(f"Received event: {json.dumps(event)}")
+        # Log the event immediately
+        logger.info("Raw event received")
+        logger.info(json.dumps(event, default=str))
+        
+        # Check environment variables are set
+        required_env_vars = ['GOOGLE_CLOUD_PROJECT_ID', 'BIGQUERY_DATASET_ID', 'BIGQUERY_TABLE_ID']
+        for var in required_env_vars:
+            if not os.environ.get(var):
+                logger.error(f"Missing required environment variable: {var}")
+                raise ValueError(f"Missing required environment variable: {var}")
+            logger.info(f"{var}: {os.environ[var]}")
+            
+        # Check if credentials file exists
+        creds_path = '/opt/google_credentials.json'
+        if not os.path.exists(creds_path):
+            logger.error(f"Credentials file not found at {creds_path}")
+            raise FileNotFoundError(f"Credentials file not found at {creds_path}")
+        logger.info("Found credentials file")
         
         # Initialize BigQuery client with credentials from the layer
         credentials = service_account.Credentials.from_service_account_file(
