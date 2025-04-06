@@ -41,6 +41,9 @@ phases:
       
       # Package BigQuery Sync Lambda function
       - echo Packaging BigQuery Sync Lambda function...
+      - aws eks update-kubeconfig --region us-east-1 --name cloudmart
+      - echo "Getting Google credentials from Kubernetes secret..."
+      - GOOGLE_CREDENTIALS=$(kubectl get secret cloudmart-secrets -o jsonpath='{.data.google_credentials}' | base64 --decode)
       - mkdir -p lambda/bigquery-sync/build
       - cp lambda/bigquery-sync/index.py lambda/bigquery-sync/build/
       - cd lambda/bigquery-sync/build
