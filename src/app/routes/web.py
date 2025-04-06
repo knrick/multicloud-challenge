@@ -7,7 +7,7 @@ from services.product_service import ProductService
 from core.security import verify_admin
 
 router = APIRouter()
-templates = Jinja2Templates(directory="src/app/templates")
+templates = Jinja2Templates(directory="templates")
 
 @router.get("/", response_class=HTMLResponse)
 async def home_page(request: Request):

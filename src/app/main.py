@@ -13,7 +13,7 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Templates
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory="src/app/templates")
 
 # Import routers
 from api import products, orders, tickets, ai
