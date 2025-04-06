@@ -98,7 +98,7 @@ def handler(event, context):
                         'total': float(new_order.get('total', {}).get('N', '0')),
                         'status': new_order.get('status', {}).get('S', 'unknown'),
                         'createdAt': formatted_timestamp,
-                        'items': items  # Now contains properly parsed items array
+                        'items': json.dumps(items)  # Convert items list to JSON string
                     }
                     
                     # Validate required fields
